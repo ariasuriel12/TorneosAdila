@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Torneos de Fútbol</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+</head>
+<body class="bg-gray-100 text-gray-800 min-h-screen flex flex-col justify-between font-sans">
+
+    <header class="bg-blue-900 text-white p-4 shadow-lg text-center">
+        <h1 class="text-2xl md:text-3xl font-bold tracking-wide">Torneos de Fútbol</h1>
+    </header>
+
+    <main class="max-w-5xl w-full mx-auto p-4 flex-grow">
+        <div class="flex flex-col sm:flex-row justify-center border-b border-gray-300 mb-6 gap-1">
+            <button onclick="cambiarTorneo('zona1')" id="tab-zona1" class="tab-btn py-3 px-4 font-semibold text-center border-b-4 border-blue-900 text-blue-900 bg-white rounded-t-lg shadow-sm">
+                Zona 1 Andres "NANO" Cabrera
+            </button>
+            <button onclick="cambiarTorneo('zona2')" id="tab-zona2" class="tab-btn py-3 px-4 font-semibold text-center border-b-4 border-transparent text-gray-600 hover:text-blue-900 bg-gray-50 rounded-t-lg">
+                Zona 2 Andres "NANO" Cabrera
+            </button>
+            <button onclick="cambiarTorneo('veteranos')" id="tab-veteranos" class="tab-btn py-3 px-4 font-semibold text-center border-b-4 border-transparent text-gray-600 hover:text-blue-900 bg-gray-50 rounded-t-lg">
+                TORNEO CAROLINA CELIZ VETERANOS+50
+            </button>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-md p-4 md:p-6 relative overflow-hidden">
+            <div id="marca-agua-container" class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-10 z-0">
+                <img id="marca-agua-img" class="max-w-[70%] max-h-[70%] object-contain hidden" alt="Marca de Agua Torneo">
+            </div>
+
+            <div class="relative z-10">
+                <div class="flex flex-wrap justify-between items-center gap-2 mb-4 border-b pb-3">
+                    <h2 id="torneo-titulo" class="text-xl font-bold text-gray-800">Zona 1 Andres "NANO" Cabrera</h2>
+                    <div class="flex gap-2">
+                        <button onclick="descargarPDF()" class="bg-red-600 hover:bg-red-700 text-white text-xs md:text-sm px-3 py-1.5 rounded-lg font-semibold transition flex items-center gap-1">
+                            📄 Descargar PDF
+                        </button>
+                        <button onclick="toggleVista()" id="btn-toggle-vista" class="bg-blue-600 hover:bg-blue-700 text-white text-xs md:text-sm px-3 py-1.5 rounded-lg font-semibold transition">
+                            Ver Tabla de Posiciones
+                        </button>
+                    </div>
+                </div>
+
+                <div id="contenedor-selector-fecha" class="flex items-center justify-between bg-blue-50 p-2.5 rounded-lg border border-blue-100 mb-4">
+                    <span class="font-bold text-blue-900 text-sm md:text-base">📅 Seleccionar Fecha:</span>
+                    <select id="select-numero-fecha" onchange="cambiarFechaVisualizada(this.value)" class="bg-white border border-gray-300 font-bold text-blue-900 text-sm rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500">
+                        </select>
+                </div>
+
+                <div id="contenido-exportable" class="p-2 bg-transparent">
+                    <div id="seccion-fechas" class="space-y-3">
+                        <p class="text-gray-500 text-center py-4">Cargando partidos...</p>
+                    </div>
+
+                    <div id="seccion-tabla" class="hidden overflow-x-auto">
+                        <table class="w-full text-left border-collapse text-sm md:text-base">
+                            <thead>
+                                <tr class="bg-blue-900 text-white">
+                                    <th class="p-2.5">Equipo</th>
+                                    <th class="p-2.5 text-center">PTS</th>
+                                    <th class="p-2.5 text-center">PJ</th>
+                                    <th class="p-2.5 text-center">PG</th>
+                                    <th class="p-2.5 text-center">PE</th>
+                                    <th class="p-2.5 text-center">PP</th>
+                                    <th class="p-2.5 text-center">GF</th>
+                                    <th class="p-2.5 text-center">GC</th>
+                                    <th class="p-2.5 text-center">DIF</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabla-body" class="divide-y divide-gray-200">
+                                </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-gray-800 text-white mt-10 p-6">
+        <div class="max-w-md mx-auto text-center">
+            <div id="login-container">
+                <h3 class="text-lg font-semibold mb-3">Acceso Administradores</h3>
+                <form onsubmit="loginAdmin(event)" class="space-y-3">
+                    <input type="email" id="admin-email" placeholder="Correo electrónico" required class="w-full px-3 py-2 rounded text-gray-800 text-sm">
+                    <input type="password" id="admin-pass" placeholder="Contraseña" required class="w-full px-3 py-2 rounded text-gray-800 text-sm">
+                    <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded text-sm font-semibold transition">
+                        Iniciar Sesión
+                    </button>
+                </form>
+            </div>
+
+            <div id="admin-panel" class="hidden bg-gray-700 p-4 rounded-lg text-left space-y-4 shadow-inner">
+                <div class="flex justify-between items-center border-b border-gray-600 pb-2">
+                    <p class="text-green-400 font-bold text-sm">✓ Modo Administrador Activo</p>
+                    <button onclick="logoutAdmin()" class="bg-red-600 hover:bg-red-700 text-xs px-2 py-1 rounded text-white font-semibold">Cerrar Sesión</button>
+                </div>
+
+                <div class="bg-gray-800 p-3 rounded border border-gray-600">
+                    <h5 class="font-bold text-xs text-amber-400 mb-2">🛡️ Cargar Escudo de Equipo</h5>
+                    <form onsubmit="guardarEscudoEquipo(event)" class="space-y-2">
+                        <input type="text" id="escudo-nombre-equipo" placeholder="Nombre exacto del equipo" required class="w-full p-2 rounded text-gray-800 text-xs font-medium">
+                        <input type="file" id="escudo-input-file" accept="image/*" required class="w-full text-xs text-gray-300 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-amber-500 file:text-white hover:file:bg-amber-600 cursor-pointer">
+                        <button type="submit" class="w-full bg-amber-600 hover:bg-amber-700 text-white py-1.5 rounded font-bold text-xs transition">
+                            Guardar Escudo
+                        </button>
+                    </form>
+                </div>
+
+                <div class="bg-gray-800 p-3 rounded border border-gray-600">
+                    <h5 class="font-bold text-xs text-amber-400 mb-1">🖼️ Cargar Logo del Torneo (Marca de Agua)</h5>
+                    <input type="file" id="input-logo" accept="image/*" onchange="subirLogoLocal(event)" class="w-full text-xs text-gray-300 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer">
+                </div>
+
+                <div class="border-t border-gray-600 pt-2">
+                    <h4 id="form-titulo" class="font-semibold text-white text-sm">Cargar Resultado o Fecha Libre</h4>
+                    <p id="indicador-edicion" class="text-amber-300 text-xs hidden font-medium mb-2">Modificando un registro existente...</p>
+
+                    <form onsubmit="guardarPartido(event)" class="space-y-3 text-xs md:text-sm">
+                        <input type="hidden" id="partido-id-editando" value="">
+
+                        <div class="flex items-center gap-2 bg-gray-800 p-2 rounded border border-gray-600">
+                            <label for="numero-fecha" class="text-gray-200 font-bold whitespace-nowrap">Fecha N°:</label>
+                            <input type="number" id="numero-fecha" min="1" max="50" value="1" required class="w-20 p-1.5 rounded text-gray-800 font-bold text-center">
+                        </div>
+
+                        <div class="flex items-center gap-2 bg-gray-800 p-2 rounded border border-gray-600">
+                            <input type="checkbox" id="es-libre" onchange="toggleFormularioLibre()" class="w-4 h-4 accent-blue-600 rounded cursor-pointer">
+                            <label for="es-libre" class="text-gray-200 font-medium cursor-pointer">Marcar como Equipo Libre</label>
+                        </div>
+
+                        <div class="flex gap-2 items-center">
+                            <input type="text" id="equipo1" placeholder="Equipo Local" required class="flex-1 p-2 rounded text-gray-800 font-medium">
+                            <input type="number" id="goles1" min="0" placeholder="Goles" required class="w-20 p-2 rounded text-gray-800 text-center font-bold campo-partido">
+                        </div>
+                        
+                        <div id="divisor-vs" class="text-center text-gray-400 font-bold my-1 campo-partido">VS</div>
+                        
+                        <div id="contenedor-equipo2" class="flex gap-2 items-center campo-partido">
+                            <input type="text" id="equipo2" placeholder="Equipo Visitante" required class="flex-1 p-2 rounded text-gray-800 font-medium input-equipo2">
+                            <input type="number" id="goles2" min="0" placeholder="Goles" required class="w-20 p-2 rounded text-gray-800 text-center font-bold input-equipo2">
+                        </div>
+
+                        <div class="flex gap-2 pt-1">
+                            <button type="submit" id="btn-submit-form" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-bold text-sm transition">
+                                Guardar Registro
+                            </button>
+                            <button type="button" id="btn-cancelar-edicion" onclick="cancelarEdicion()" class="hidden bg-gray-500 hover:bg-gray-600 text-white px-3 py-2 rounded-lg font-bold text-sm transition">
+                                Cancelar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Configuración de Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyA__cxokCbXsjLcm1ZH_jXRxvJQzNgR0t8",
+            authDomain: "torneosadila.firebaseapp.com",
+            projectId: "torneosadila",
+            storageBucket: "torneosadila.firebasestorage.app",
+            messagingSenderId: "974127055671",
+            appId: "1:974127055671:web:d59c856e3f111be7ac50b2",
+            measurementId: "G-MFRTP9RJCF"
+        };
+
+        // Inicializar Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        let torneoActual = 'zona1';
+        let vistaActual = 'fechas';
+        let fechaSeleccionada = 1;
+        let esAdmin = false;
+        let partidosCargados = [];
+        let escudosEquipos = {}; // Guarda la relación { "NombreEquipo": "URL/Base64" }
+
+        const nombresTorneos = {
+            'zona1': 'Zona 1 Andres "NANO" Cabrera',
+            'zona2': 'Zona 2 Andres "NANO" Cabrera',
+            'veteranos': 'TORNEO CAROLINA CELIZ VETERANOS+50'
+        };
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const logoGuardado = localStorage.getItem('logo_torneo');
+            if (logoGuardado) mostrarLogoMarcaAgua(logoGuardado);
+            
+            const escudosGuardados = localStorage.getItem('escudos_equipos');
+            if (escudosGuardados) escudosEquipos = JSON.parse(escudosGuardados);
+
+            inicializarSelectorFechas();
+        });
+
+        function inicializarSelectorFechas() {
+            const select = document.getElementById('select-numero-fecha');
+            select.innerHTML = '';
+            for (let i = 1; i <= 30; i++) {
+                const opt = document.createElement('option');
+                opt.value = i;
+                opt.innerText = `Fecha ${i}`;
+                if (i === fechaSeleccionada) opt.selected = true;
+                select.appendChild(opt);
+            }
+        }
+
+        function cambiarFechaVisualizada(numFecha) {
+            fechaSeleccionada = parseInt(numFecha);
+            cargarPartidos();
+        }
+
+        auth.onAuthStateChanged(user => {
+            esAdmin = !!user;
+            if (user) {
+                document.getElementById('login-container').classList.add('hidden');
+                document.getElementById('admin-panel').classList.remove('hidden');
+            } else {
+                document.getElementById('login-container').classList.remove('hidden');
+                document.getElementById('admin-panel').classList.add('hidden');
+            }
+            cargarPartidos();
+        });
+
+        function loginAdmin(e) {
+            e.preventDefault();
+            const email = document.getElementById('admin-email').value;
+            const pass = document.getElementById('admin-pass').value;
+            auth.signInWithEmailAndPassword(email, pass).catch(err => alert("Error: " + err.message));
+        }
+
+        function logoutAdmin() {
+            auth.signOut();
+        }
+
+        function cambiarTorneo(key) {
+            torneoActual = key;
+            document.getElementById('torneo-titulo').innerText = nombresTorneos[key];
+            
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('border-blue-900', 'text-blue-900', 'bg-white');
+                btn.classList.add('border-transparent', 'text-gray-600', 'bg-gray-50');
+            });
+
+            const tabActivo = document.getElementById(`tab-${key}`);
+            tabActivo.classList.add('border-blue-900', 'text-blue-900', 'bg-white');
+            tabActivo.classList.remove('border-transparent', 'text-gray-600', 'bg-gray-50');
+
+            cancelarEdicion();
+            cargarPartidos();
+            if (vistaActual === 'tabla') calcularTabla();
+        }
+
+        function toggleVista() {
+            const seccionFechas = document.getElementById('seccion-fechas');
+            const seccionTabla = document.getElementById('seccion-tabla');
+            const btn = document.getElementById('btn-toggle-vista');
+            const selectorFecha = document.getElementById('contenedor-selector-fecha');
+
+            if (vistaActual === 'fechas') {
+                seccionFechas.classList.add('hidden');
+                seccionTabla.classList.remove('hidden');
+                selectorFecha.classList.add('hidden');
+                btn.innerText = 'Ver Fechas del Torneo';
+                vistaActual = 'tabla';
+                calcularTabla();
+            } else {
+                seccionTabla.classList.add('hidden');
+                seccionFechas.classList.remove('hidden');
+                selectorFecha.classList.remove('hidden');
+                btn.innerText = 'Ver Tabla de Posiciones';
+                vistaActual = 'fechas';
+            }
+        }
+
+        function toggleFormularioLibre() {
+            const esLibre = document.getElementById('es-libre').checked;
+            const camposPartido = document.querySelectorAll('.campo-partido');
+            const inputsEquipo2 = document.querySelectorAll('.input-equipo2');
+            const inputEquipo1 = document.getElementById('equipo1');
+
+            if (esLibre) {
+                camposPartido.forEach(el => el.classList.add('hidden'));
+                inputsEquipo2.forEach(el => el.removeAttribute('required'));
+                document.getElementById('goles1').removeAttribute('required');
+                inputEquipo1.placeholder = "Nombre del equipo libre";
+            } else {
+                camposPartido.forEach(el => el.classList.remove('hidden'));
+                inputsEquipo2.forEach(el => el.setAttribute('required', 'true'));
+                document.getElementById('goles1').setAttribute('required', 'true');
+                inputEquipo1.placeholder = "Equipo Local";
+            }
+        }
+
+        function obtenerHtmlEscudo(nombreEquipo) {
+            const src = escudosEquipos[nombreEquipo.trim().toLowerCase()];
+            if (src) {
+                return `<img src="${src}" class="w-6 h-6 object-contain inline-block shrink-0 rounded-full bg-white border" alt="Escudo">`;
+            }
+            return `<span class="w-6 h-6 rounded-full bg-gray-200 border flex items-center justify-center text-[10px] text-gray-500 font-bold shrink-0">⚽</span>`;
+        }
+
+        function guardarEscudoEquipo(e) {
+            e.preventDefault();
+            const nombre = document.getElementById('escudo-nombre-equipo').value.trim().toLowerCase();
+            const file = document.getElementById('escudo-input-file').files[0];
+
+            if (!nombre || !file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                escudosEquipos[nombre] = evt.target.result;
+                localStorage.setItem('escudos_equipos', JSON.stringify(escudosEquipos));
+                alert(`Escudo guardado para "${nombre}"`);
+                e.target.reset();
+                cargarPartidos();
+                if (vistaActual === 'tabla') calcularTabla();
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function guardarPartido(e) {
+            e.preventDefault();
+            const idEditando = document.getElementById('partido-id-editando').value;
+            const numFecha = parseInt(document.getElementById('numero-fecha').value) || 1;
+            const esLibre = document.getElementById('es-libre').checked;
+            const eq1 = document.getElementById('equipo1').value.trim();
+
+            let datosGuardar = {
+                torneo: torneoActual,
+                numeroFecha: numFecha,
+                equipo1: eq1,
+                esLibre: esLibre
+            };
+
+            if (esLibre) {
+                datosGuardar.goles1 = 0;
+                datosGuardar.goles2 = 0;
+                datosGuardar.equipo2 = '';
+            } else {
+                datosGuardar.goles1 = parseInt(document.getElementById('goles1').value);
+                datosGuardar.goles2 = parseInt(document.getElementById('goles2').value);
+                datosGuardar.equipo2 = document.getElementById('equipo2').value.trim();
+            }
+
+            if (idEditando) {
+                db.collection('partidos').doc(idEditando).update(datosGuardar).then(() => {
+                    alert("Resultado actualizado correctamente");
+                    cancelarEdicion();
+                    cargarPartidos();
+                    if (vistaActual === 'tabla') calcularTabla();
+                }).catch(err => alert("Error al actualizar: " + err.message));
+            } else {
+                datosGuardar.fecha = firebase.firestore.FieldValue.serverTimestamp();
+                db.collection('partidos').add(datosGuardar).then(() => {
+                    alert(esLibre ? "Fecha libre guardada con éxito" : "Partido guardado con éxito");
+                    cancelarEdicion();
+                    cargarPartidos();
+                    if (vistaActual === 'tabla') calcularTabla();
+                }).catch(err => alert("Error al guardar: " + err.message));
+            }
+        }
+
+        function cargarPartidos() {
+            const contenedor = document.getElementById('seccion-fechas');
+            contenedor.innerHTML = '<p class="text-gray-500 text-center py-4">Cargando partidos...</p>';
+
+            db.collection('partidos')
+              .where('torneo', '==', torneoActual)
+              .where('numeroFecha', '==', fechaSeleccionada)
+              .get().then(snapshot => {
+                if(snapshot.empty) {
+                    contenedor.innerHTML = `<p class="text-gray-500 text-center py-4">No hay partidos registrados para la <b>Fecha ${fechaSeleccionada}</b>.</p>`;
+                    partidosCargados = [];
+                    return;
+                }
+                
+                partidosCargados = [];
+                let html = '';
+
+                snapshot.forEach(doc => {
+                    const p = doc.data();
+                    p.id = doc.id;
+                    partidosCargados.push(p);
+
+                    const accionesAdmin = esAdmin ? `
+                        <div class="flex gap-1 ml-2 shrink-0">
+                            <button onclick="prepararEdicion('${p.id}')" title="Editar" class="bg-amber-500 hover:bg-amber-600 text-white text-xs px-2 py-1 rounded font-semibold transition">
+                                ✏️
+                            </button>
+                            <button onclick="eliminarPartido('${p.id}')" title="Eliminar" class="bg-red-600 hover:bg-red-700 text-white text-xs px-2 py-1 rounded font-semibold transition">
+                                🗑️
+                            </button>
+                        </div>
+                    ` : '';
+
+                    const escudo1 = obtenerHtmlEscudo(p.equipo1);
+                    const escudo2 = p.equipo2 ? obtenerHtmlEscudo(p.equipo2) : '';
+
+                    if (p.esLibre) {
+                        html += `
+                            <div class="bg-amber-50/90 backdrop-blur-sm border-l-4 border-amber-500 p-3 rounded-r-lg border flex justify-between items-center text-sm md:text-base shadow-sm">
+                                <div class="flex items-center gap-2">
+                                    ${escudo1}
+                                    <span class="font-semibold text-amber-900">${p.equipo1}</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="bg-amber-200 text-amber-900 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">LIBRE</span>
+                                    ${accionesAdmin}
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        html += `
+                            <div class="bg-gray-50/90 backdrop-blur-sm p-3 rounded-lg border flex justify-between items-center text-sm md:text-base shadow-sm gap-2">
+                                <div class="flex-1 flex items-center justify-end gap-2 truncate">
+                                    <span class="font-medium text-gray-800 truncate">${p.equipo1}</span>
+                                    ${escudo1}
+                                </div>
+                                <span class="min-w-[3.5rem] text-center bg-blue-900 text-white px-2.5 py-1 rounded font-bold text-sm md:text-base shrink-0 shadow-sm">${p.goles1} - ${p.goles2}</span>
+                                <div class="flex-1 flex items-center justify-start gap-2 truncate">
+                                    ${escudo2}
+                                    <span class="font-medium text-gray-800 truncate">${p.equipo2}</span>
+                                </div>
+                                ${accionesAdmin}
+                            </div>
+                        `;
+                    }
+                });
+                contenedor.innerHTML = html;
+            });
+        }
+
+        function prepararEdicion(id) {
+            const partido = partidosCargados.find(p => p.id === id);
+            if (!partido) return;
+
+            document.getElementById('partido-id-editando').value = partido.id;
+            document.getElementById('numero-fecha').value = partido.numeroFecha || fechaSeleccionada;
+            document.getElementById('es-libre').checked = !!partido.esLibre;
+            toggleFormularioLibre();
+
+            document.getElementById('equipo1').value = partido.equipo1 || '';
+            if (!partido.esLibre) {
+                document.getElementById('goles1').value = partido.goles1 ?? '';
+                document.getElementById('equipo2').value = partido.equipo2 || '';
+                document.getElementById('goles2').value = partido.goles2 ?? '';
+            }
+
+            document.getElementById('form-titulo').innerText = "Editar Resultado Existente";
+            document.getElementById('indicador-edicion').classList.remove('hidden');
+            document.getElementById('btn-submit-form').innerText = "Guardar Cambios";
+            document.getElementById('btn-cancelar-edicion').classList.remove('hidden');
+
+            document.getElementById('admin-panel').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function cancelarEdicion() {
+            document.getElementById('partido-id-editando').value = '';
+            const form = document.querySelector('#admin-panel form');
+            if (form) form.reset();
+            
+            document.getElementById('numero-fecha').value = fechaSeleccionada;
+            document.getElementById('es-libre').checked = false;
+            toggleFormularioLibre();
+
+            document.getElementById('form-titulo').innerText = "Cargar Resultado o Fecha Libre";
+            document.getElementById('indicador-edicion').classList.add('hidden');
+            document.getElementById('btn-submit-form').innerText = "Guardar Registro";
+            document.getElementById('btn-cancelar-edicion').classList.add('hidden');
+        }
+
+        function eliminarPartido(id) {
+            if (confirm("¿Estás seguro de que deseas eliminar este partido?")) {
+                db.collection('partidos').doc(id).delete().then(() => {
+                    alert("Partido eliminado correctamente.");
+                    cargarPartidos();
+                    if (vistaActual === 'tabla') calcularTabla();
+                }).catch(err => alert("Error al eliminar: " + err.message));
+            }
+        }
+
+        function calcularTabla() {
+            db.collection('partidos').where('torneo', '==', torneoActual).get().then(snapshot => {
+                const equipos = {};
+
+                snapshot.forEach(doc => {
+                    const p = doc.data();
+
+                    if (p.esLibre) {
+                        if (!equipos[p.equipo1]) equipos[p.equipo1] = { pj:0, pg:0, pe:0, pp:0, gf:0, gc:0, pts:0 };
+                        equipos[p.equipo1].pj++;
+                        return;
+                    }
+
+                    [p.equipo1, p.equipo2].forEach(eq => {
+                        if (!equipos[eq]) equipos[eq] = { pj:0, pg:0, pe:0, pp:0, gf:0, gc:0, pts:0 };
+                    });
+
+                    equipos[p.equipo1].pj++;
+                    equipos[p.equipo2].pj++;
+                    equipos[p.equipo1].gf += p.goles1;
+                    equipos[p.equipo1].gc += p.goles2;
+                    equipos[p.equipo2].gf += p.goles2;
+                    equipos[p.equipo2].gc += p.goles1;
+
+                    if (p.goles1 > p.goles2) {
+                        equipos[p.equipo1].pg++;
+                        equipos[p.equipo1].pts += 3;
+                        equipos[p.equipo2].pp++;
+                    } else if (p.goles2 > p.goles1) {
+                        equipos[p.equipo2].pg++;
+                        equipos[p.equipo2].pts += 3;
+                        equipos[p.equipo1].pp++;
+                    } else {
+                        equipos[p.equipo1].pe++;
+                        equipos[p.equipo1].pts += 1;
+                        equipos[p.equipo2].pe++;
+                        equipos[p.equipo2].pts += 1;
+                    }
+                });
+
+                const listaOrdenada = Object.keys(equipos).map(nombre => ({
+                    nombre, ...equipos[nombre], dif: equipos[nombre].gf - equipos[nombre].gc
+                })).sort((a,b) => b.pts - a.pts || b.dif - a.dif);
+
+                const tbody = document.getElementById('tabla-body');
+                tbody.innerHTML = listaOrdenada.map(e => `
+                    <tr class="hover:bg-gray-50/80">
+                        <td class="p-2.5 font-semibold text-gray-800 flex items-center gap-2">
+                            ${obtenerHtmlEscudo(e.nombre)}
+                            <span>${e.nombre}</span>
+                        </td>
+                        <td class="p-2.5 text-center font-bold text-blue-900 bg-blue-50/80">${e.pts}</td>
+                        <td class="p-2.5 text-center">${e.pj}</td>
+                        <td class="p-2.5 text-center">${e.pg}</td>
+                        <td class="p-2.5 text-center">${e.pe}</td>
+                        <td class="p-2.5 text-center">${e.pp}</td>
+                        <td class="p-2.5 text-center">${e.gf}</td>
+                        <td class="p-2.5 text-center">${e.gc}</td>
+                        <td class="p-2.5 text-center font-medium">${e.dif > 0 ? '+'+e.dif : e.dif}</td>
+                    </tr>
+                `).join('');
+            });
+        }
+
+        function subirLogoLocal(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const base64Image = e.target.result;
+                localStorage.setItem('logo_torneo', base64Image);
+                mostrarLogoMarcaAgua(base64Image);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function mostrarLogoMarcaAgua(src) {
+            const img = document.getElementById('marca-agua-img');
+            img.src = src;
+            img.classList.remove('hidden');
+        }
+
+        function descargarPDF() {
+            const elemento = document.getElementById('contenido-exportable');
+            const tituloTorneo = nombresTorneos[torneoActual];
+
+            const opciones = {
+                margin:       10,
+                filename:     `${tituloTorneo}_Fecha${fechaSeleccionada}_${vistaActual}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, background: '#ffffff' },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            html2pdf().set(opciones).from(elemento).save();
+        }
+
+        cargarPartidos();
+    </script>
+</body>
+</html>
