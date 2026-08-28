@@ -102,19 +102,19 @@
                 </div>
 
                 <div class="bg-gray-800 p-3 rounded border border-gray-600">
-                    <h5 class="font-bold text-xs text-amber-400 mb-2">🛡️ Cargar Escudo de Equipo</h5>
+                    <h5 class="font-bold text-xs text-amber-400 mb-2">🛡️ Cargar Escudo de Equipo (Sincronizado)</h5>
                     <form onsubmit="guardarEscudoEquipo(event)" class="space-y-2">
                         <input type="text" id="escudo-nombre-equipo" placeholder="Nombre exacto del equipo" required class="w-full p-2 rounded text-gray-800 text-xs font-medium">
                         <input type="file" id="escudo-input-file" accept="image/*" required class="w-full text-xs text-gray-300 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-amber-500 file:text-white hover:file:bg-amber-600 cursor-pointer">
-                        <button type="submit" class="w-full bg-amber-600 hover:bg-amber-700 text-white py-1.5 rounded font-bold text-xs transition">
-                            Guardar Escudo
+                        <button type="submit" id="btn-guardar-escudo" class="w-full bg-amber-600 hover:bg-amber-700 text-white py-1.5 rounded font-bold text-xs transition">
+                            Guardar Escudo en Firebase
                         </button>
                     </form>
                 </div>
 
                 <div class="bg-gray-800 p-3 rounded border border-gray-600">
-                    <h5 class="font-bold text-xs text-amber-400 mb-1">🖼️ Cargar Logo del Torneo (Marca de Agua)</h5>
-                    <input type="file" id="input-logo" accept="image/*" onchange="subirLogoLocal(event)" class="w-full text-xs text-gray-300 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer">
+                    <h5 class="font-bold text-xs text-amber-400 mb-1">🖼️ Cargar Logo del Torneo (Sincronizado)</h5>
+                    <input type="file" id="input-logo" accept="image/*" onchange="subirLogoFirebase(event)" class="w-full text-xs text-gray-300 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer">
                 </div>
 
                 <div class="border-t border-gray-600 pt-2">
@@ -182,7 +182,7 @@
         let fechaSeleccionada = 1;
         let esAdmin = false;
         let partidosCargados = [];
-        let escudosEquipos = {}; // Guarda la relación { "NombreEquipo": "URL/Base64" }
+        let escudosEquipos = {}; // Guarda la relación { "nombre_equipo": "imagen_base64" } desde Firebase
 
         const nombresTorneos = {
             'zona1': 'Zona 1 Andres "NANO" Cabrera',
@@ -191,14 +191,31 @@
         };
 
         window.addEventListener('DOMContentLoaded', () => {
-            const logoGuardado = localStorage.getItem('logo_torneo');
-            if (logoGuardado) mostrarLogoMarcaAgua(logoGuardado);
-            
-            const escudosGuardados = localStorage.getItem('escudos_equipos');
-            if (escudosGuardados) escudosEquipos = JSON.parse(escudosGuardados);
-
             inicializarSelectorFechas();
+            escucharConfiguracionGlobal();
+            escucharEscudosFirebase();
         });
+
+        // Escucha en tiempo real el Logo de Agua desde Firebase
+        function escucharConfiguracionGlobal() {
+            db.collection('configuracion').doc('general').onSnapshot(doc => {
+                if (doc.exists && doc.data().logoTorneo) {
+                    mostrarLogoMarcaAgua(doc.data().logoTorneo);
+                }
+            });
+        }
+
+        // Escucha en tiempo real los Escudos de Equipos desde Firebase
+        function escucharEscudosFirebase() {
+            db.collection('escudos').onSnapshot(snapshot => {
+                escudosEquipos = {};
+                snapshot.forEach(doc => {
+                    escudosEquipos[doc.id] = doc.data().imagen;
+                });
+                cargarPartidos();
+                if (vistaActual === 'tabla') calcularTabla();
+            });
+        }
 
         function inicializarSelectorFechas() {
             const select = document.getElementById('select-numero-fecha');
@@ -307,23 +324,73 @@
             return `<span class="w-6 h-6 rounded-full bg-gray-200 border flex items-center justify-center text-[10px] text-gray-500 font-bold shrink-0">⚽</span>`;
         }
 
-        function guardarEscudoEquipo(e) {
-            e.preventDefault();
-            const nombre = document.getElementById('escudo-nombre-equipo').value.trim().toLowerCase();
-            const file = document.getElementById('escudo-input-file').files[0];
-
-            if (!nombre || !file) return;
-
+        // Redimensionar imagen para optimizar almacenamiento en Firebase
+        function optimizarImagenBase64(file, maxWidth, callback) {
             const reader = new FileReader();
-            reader.onload = function(evt) {
-                escudosEquipos[nombre] = evt.target.result;
-                localStorage.setItem('escudos_equipos', JSON.stringify(escudosEquipos));
-                alert(`Escudo guardado para "${nombre}"`);
-                e.target.reset();
-                cargarPartidos();
-                if (vistaActual === 'tabla') calcularTabla();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > maxWidth) {
+                        height = Math.round((height * maxWidth) / width);
+                        width = maxWidth;
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    callback(canvas.toDataURL('image/png', 0.8));
+                };
+                img.src = e.target.result;
             };
             reader.readAsDataURL(file);
+        }
+
+        // Subir Escudo a Firebase
+        function guardarEscudoEquipo(e) {
+            e.preventDefault();
+            const nombreOriginal = document.getElementById('escudo-nombre-equipo').value.trim();
+            const idDoc = nombreOriginal.toLowerCase();
+            const file = document.getElementById('escudo-input-file').files[0];
+            const btn = document.getElementById('btn-guardar-escudo');
+
+            if (!idDoc || !file) return;
+
+            btn.disabled = true;
+            btn.innerText = "Guardando en Firebase...";
+
+            optimizarImagenBase64(file, 120, function(imagenBase64) {
+                db.collection('escudos').doc(idDoc).set({
+                    nombreOriginal: nombreOriginal,
+                    imagen: imagenBase64
+                }).then(() => {
+                    alert(`Escudo de "${nombreOriginal}" guardado con éxito. Ahora visible en todos los dispositivos.`);
+                    e.target.reset();
+                }).catch(err => {
+                    alert("Error al guardar escudo: " + err.message);
+                }).finally(() => {
+                    btn.disabled = false;
+                    btn.innerText = "Guardar Escudo en Firebase";
+                });
+            });
+        }
+
+        // Subir Logo de Agua a Firebase
+        function subirLogoFirebase(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            optimizarImagenBase64(file, 400, function(imagenBase64) {
+                db.collection('configuracion').doc('general').set({
+                    logoTorneo: imagenBase64
+                }).then(() => {
+                    alert("Logo del torneo cargado y sincronizado para todos los dispositivos.");
+                }).catch(err => alert("Error al subir el logo: " + err.message));
+            });
         }
 
         function guardarPartido(e) {
@@ -549,19 +616,6 @@
                     </tr>
                 `).join('');
             });
-        }
-
-        function subirLogoLocal(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const base64Image = e.target.result;
-                localStorage.setItem('logo_torneo', base64Image);
-                mostrarLogoMarcaAgua(base64Image);
-            };
-            reader.readAsDataURL(file);
         }
 
         function mostrarLogoMarcaAgua(src) {
