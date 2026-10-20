@@ -1,645 +1,1155 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es-AR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Torneos de Fútbol</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0">
+<title>Torneos Adila</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+  :root{
+    --verde: #1E4A34;
+    --verde-claro: #2F6B4A;
+    --verde-oscuro: #12301F;
+    --tiza: #F7F5EF;
+    --dorado: #C9972E;
+    --dorado-claro: #E4C77A;
+    --tinta: #182019;
+    --rojo: #A8402E;
+    --linea: #D8D3C4;
+    --blanco: #FFFFFF;
+  }
+  *{box-sizing:border-box;}
+  html{-webkit-text-size-adjust:100%;}
+  body{
+    margin:0; background:var(--tiza); color:var(--tinta);
+    font-family:'Inter',system-ui,-apple-system,sans-serif;
+    font-size:18px; line-height:1.45; min-height:100vh;
+  }
+  h1,h2,h3,.display{
+    font-family:'Anton','Impact',sans-serif; font-weight:400; letter-spacing:0.02em;
+    text-transform:uppercase; color:var(--verde-oscuro);
+  }
+  button, input, select{ font-family:inherit; font-size:1rem; }
+  button{ cursor:pointer; }
+  button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible{ outline:3px solid var(--dorado); outline-offset:2px; }
+  .wrap{ max-width:820px; margin:0 auto; padding:0 16px 56px; }
+
+  /* ---------- Topbar ---------- */
+  .topbar{
+    background:linear-gradient(135deg,var(--verde) 0%,var(--verde-oscuro) 100%);
+    color:var(--tiza); padding:14px 16px; display:flex; align-items:center; justify-content:space-between; gap:10px;
+    box-shadow:0 3px 10px rgba(0,0,0,.18); position:sticky; top:0; z-index:50;
+  }
+  .topbar-left{ display:flex; align-items:center; gap:10px; min-width:0; }
+  .back-btn{
+    background:rgba(255,255,255,.14); border:none; color:var(--tiza); width:44px; height:44px; border-radius:12px;
+    font-size:1.3rem; display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+  .topbar-title{ font-family:'Anton',sans-serif; font-size:1.15rem; letter-spacing:.03em; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .admin-pill{
+    display:flex; align-items:center; gap:8px; background:rgba(255,255,255,.14); border:none; color:var(--tiza);
+    padding:10px 14px; border-radius:999px; font-weight:700; font-size:.95rem; white-space:nowrap;
+  }
+  .admin-pill.on{ background:var(--dorado); color:var(--verde-oscuro); }
+
+  /* ---------- Hero / Home ---------- */
+  .hero{
+    background: repeating-linear-gradient(0deg, rgba(255,255,255,.035) 0 40px, transparent 40px 80px),
+      linear-gradient(160deg,var(--verde) 0%, var(--verde-oscuro) 100%);
+    color:var(--tiza); padding:40px 16px 46px; text-align:center;
+  }
+  .hero h1{ color:var(--tiza); font-size:2.4rem; margin:0 0 6px; }
+  .hero p{ color:var(--dorado-claro); font-size:1.1rem; margin:0; font-weight:700; }
+  .torneo-grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px; max-width:820px; margin:-26px auto 0; padding:0 16px; position:relative; }
+  @media (max-width:560px){ .torneo-grid{ grid-template-columns:1fr; } }
+  .torneo-card{
+    background:var(--blanco); border:none; border-radius:18px; padding:26px 16px; box-shadow:0 10px 24px rgba(18,48,31,.18);
+    display:flex; flex-direction:column; align-items:center; gap:12px; text-align:center; transition:transform .15s;
+  }
+  .torneo-card:active{ transform:scale(.98); }
+  .crest-slot{
+    width:74px; height:74px; border-radius:50%; background:var(--tiza); border:3px solid var(--dorado);
+    display:flex; align-items:center; justify-content:center; font-size:2rem; overflow:hidden;
+  }
+  .crest-slot img{ width:100%; height:100%; object-fit:cover; }
+  .torneo-card-name{ font-family:'Anton',sans-serif; font-size:1.25rem; color:var(--verde-oscuro); }
+  .torneo-card-sub{ color:#6b6659; font-size:.92rem; font-weight:600; margin-top:-6px; }
+
+  .banner{
+    background:#FFF3D1; border:2px solid var(--dorado); border-radius:14px; padding:14px 16px; margin:18px 0 4px;
+    display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; font-weight:700; color:#5c4410;
+  }
+  .ed-chip{
+    display:inline-block; background:var(--verde); color:var(--tiza); padding:7px 14px; border-radius:999px;
+    font-weight:700; font-size:.9rem; margin-bottom:4px;
+  }
+  .ed-chip.fin{ background:var(--dorado); color:var(--verde-oscuro); }
+
+  /* ---------- Campeones enmarcados ---------- */
+  .champ-title{ text-align:center; margin:30px 0 6px; font-size:1.5rem; }
+  .champ-grid{ display:grid; grid-template-columns:1fr 1fr; gap:26px; margin:26px 0 10px; }
+  @media (max-width:560px){ .champ-grid{ grid-template-columns:1fr; } }
+  .champ-frame{
+    position:relative; background:linear-gradient(160deg,#FFF9E6,#F6E7B4); border:3px solid var(--dorado);
+    border-radius:18px; padding:34px 16px 22px; text-align:center; margin:6px 8px;
+    box-shadow:0 0 0 6px #FFF9E6, 0 0 0 9px var(--dorado), 0 12px 26px rgba(18,48,31,.22);
+  }
+  .champ-ribbon{
+    position:absolute; top:-17px; left:50%; transform:translateX(-50%); background:var(--verde-oscuro); color:var(--dorado-claro);
+    font-family:'Anton',sans-serif; padding:7px 20px; border-radius:999px; letter-spacing:.1em; white-space:nowrap; font-size:1rem;
+    border:2px solid var(--dorado);
+  }
+  .champ-crest{
+    width:96px; height:96px; border-radius:50%; margin:8px auto 12px; border:4px solid var(--dorado); background:var(--tiza);
+    overflow:hidden; display:flex; align-items:center; justify-content:center; font-size:2.6rem;
+  }
+  .champ-crest img{ width:100%; height:100%; object-fit:cover; }
+  .champ-team{ font-family:'Anton',sans-serif; font-size:1.45rem; color:var(--verde-oscuro); text-transform:uppercase; letter-spacing:.02em; }
+  .champ-torneo{ font-weight:800; color:#7a5a12; margin-top:6px; font-size:.95rem; }
+  .hist-card{ background:var(--blanco); border:2px solid var(--linea); border-radius:18px; padding:20px 16px 18px; margin-bottom:20px; }
+  .hist-card h3{ margin:0 0 4px; font-size:1.35rem; }
+  .hist-sub{ color:#6b6659; font-weight:600; font-size:.92rem; }
+
+  /* ---------- Generic ---------- */
+  .section{ padding:24px 0 4px; }
+  .section-title{ font-size:1.3rem; margin:0 0 14px; }
+  .zona-grid{ display:grid; gap:14px; }
+  .zona-btn{
+    background:var(--blanco); border:2px solid var(--linea); border-radius:14px; padding:18px 20px; text-align:left;
+    display:flex; align-items:center; justify-content:space-between; font-weight:700; color:var(--verde-oscuro); font-size:1.1rem;
+  }
+  .zona-btn .tag{ background:var(--verde); color:var(--tiza); font-size:.8rem; padding:5px 10px; border-radius:999px; font-weight:700; }
+
+  .tabs{ display:flex; gap:8px; margin:12px 0 18px; flex-wrap:wrap; }
+  .tab-btn{
+    flex:1; min-width:120px; background:var(--blanco); border:2px solid var(--linea); color:var(--verde-oscuro);
+    padding:12px 10px; border-radius:12px; font-weight:800; font-size:.95rem;
+  }
+  .tab-btn.active{ background:var(--verde); border-color:var(--verde); color:var(--tiza); }
+
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:48px; padding:10px 18px;
+    border-radius:12px; border:2px solid transparent; font-weight:800; font-size:1rem; text-align:center;
+  }
+  .btn-primary{ background:var(--verde); color:var(--tiza); }
+  .btn-gold{ background:var(--dorado); color:var(--verde-oscuro); }
+  .btn-outline{ background:var(--blanco); color:var(--verde-oscuro); border-color:var(--verde); }
+  .btn-danger{ background:var(--blanco); color:var(--rojo); border-color:var(--rojo); }
+  .btn-block{ width:100%; }
+  .btn-row{ display:flex; gap:10px; flex-wrap:wrap; }
+  .home-actions{ display:grid; gap:12px; margin-top:28px; }
+
+  /* ---------- Tabla ---------- */
+  .table-scroll{ overflow-x:auto; border-radius:14px; box-shadow:0 4px 14px rgba(18,48,31,.1); }
+  table.tabla{ border-collapse:collapse; width:100%; min-width:600px; background:var(--blanco); }
+  table.tabla th, table.tabla td{ padding:11px 10px; text-align:center; border-bottom:1px solid var(--linea); white-space:nowrap; }
+  table.tabla thead th{ background:var(--verde); color:var(--tiza); font-size:.82rem; text-transform:uppercase; letter-spacing:.03em; }
+  table.tabla tbody tr:nth-child(odd){ background:#FBFAF6; }
+  table.tabla td.equipo-cell{ text-align:left; font-weight:700; position:sticky; left:0; background:inherit; min-width:170px; }
+  table.tabla thead th.equipo-cell{ position:sticky; left:0; z-index:2; text-align:left; }
+  .equipo-cell-inner{ display:flex; align-items:center; gap:9px; }
+  .crest-sm{ width:28px; height:28px; border-radius:50%; object-fit:cover; background:var(--tiza); border:1px solid var(--linea); flex-shrink:0; }
+  .crest-sm-ph{ width:28px; height:28px; border-radius:50%; background:var(--tiza); border:1px solid var(--linea); flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:.8rem; }
+  table.tabla td.pts-cell{ font-weight:800; color:var(--verde-oscuro); background:#FBF3DE; }
+  table.tabla tbody tr:first-child td{ background:#FDF6E3; }
+  .empty-note{ color:#7a7566; font-size:.95rem; padding:14px 2px; }
+  .download-row{ display:flex; gap:10px; margin:16px 0 14px; flex-wrap:wrap; }
+
+  .fecha-row{ display:flex; gap:8px; overflow-x:auto; padding:4px 2px 12px; }
+  .fecha-chip{
+    flex-shrink:0; background:var(--blanco); border:2px solid var(--linea); color:var(--verde-oscuro);
+    padding:10px 16px; border-radius:999px; font-weight:800; white-space:nowrap;
+  }
+  .fecha-chip.active{ background:var(--dorado); border-color:var(--dorado); color:var(--verde-oscuro); }
+
+  /* ---------- Partidos ---------- */
+  .match-card{ background:var(--verde-oscuro); border-radius:16px; padding:16px; margin-bottom:14px; box-shadow:0 6px 16px rgba(18,48,31,.22); color:var(--tiza); }
+  .match-teams{ display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:8px; }
+  .match-team{ display:flex; flex-direction:column; align-items:center; gap:8px; text-align:center; min-width:0; }
+  .match-team .crest-md{ width:52px; height:52px; border-radius:50%; object-fit:cover; background:var(--tiza); border:2px solid var(--dorado); }
+  .match-team .crest-md-ph{ width:52px; height:52px; border-radius:50%; background:rgba(255,255,255,.1); border:2px solid var(--dorado); display:flex; align-items:center; justify-content:center; font-size:1.4rem; }
+  .match-team-name{ font-weight:800; font-size:.92rem; }
+  .score-box{ display:flex; align-items:center; gap:10px; justify-content:center; }
+  .score-num{ font-family:'Anton',sans-serif; font-size:2.1rem; background:var(--tinta); color:var(--dorado-claro); border-radius:8px; padding:2px 6px; min-width:46px; text-align:center; }
+  .vs-label{ font-family:'Anton',sans-serif; color:var(--dorado); font-size:1rem; }
+  .pendiente-label{ font-family:'Anton',sans-serif; color:rgba(255,255,255,.55); font-size:.95rem; letter-spacing:.05em; }
+  .score-editor{ display:flex; align-items:center; justify-content:center; gap:6px; margin-top:4px; }
+  .step-btn{ width:38px; height:38px; border-radius:10px; border:none; background:rgba(255,255,255,.14); color:var(--tiza); font-size:1.3rem; font-weight:800; display:flex; align-items:center; justify-content:center; }
+  .step-input{ width:52px; text-align:center; border:none; border-radius:8px; height:38px; font-size:1.2rem; font-weight:800; }
+  .match-admin-row{ display:flex; align-items:center; justify-content:space-between; margin-top:14px; gap:10px; flex-wrap:wrap; border-top:1px solid rgba(255,255,255,.15); padding-top:12px; }
+  .jugado-check{ display:flex; align-items:center; gap:8px; font-weight:700; font-size:.9rem; }
+  .jugado-check input{ width:22px; height:22px; }
+  .libre-card{ background:var(--dorado); color:var(--verde-oscuro); border-radius:16px; padding:16px; margin-bottom:14px; display:flex; align-items:center; gap:12px; font-weight:800; }
+
+  /* ---------- Forms ---------- */
+  .card{ background:var(--blanco); border:2px solid var(--linea); border-radius:16px; padding:18px; margin-bottom:16px; }
+  .card-admin{ border-color:var(--dorado); }
+  .card-title{ font-weight:800; font-size:1.02rem; margin:0 0 12px; display:flex; align-items:center; gap:8px; color:var(--verde-oscuro); }
+  .card p.help{ margin:0 0 14px; color:#5d5a4d; font-size:.95rem; }
+  .field{ margin-bottom:14px; }
+  .field label{ display:block; font-weight:700; margin-bottom:6px; font-size:.92rem; color:#4a473d; }
+  .field input[type=text], .field input[type=date], .field select, .field input[type=number]{
+    width:100%; padding:12px; border-radius:10px; border:2px solid var(--linea); background:var(--tiza); min-height:48px;
+  }
+  .file-btn{
+    display:inline-flex; align-items:center; gap:8px; background:var(--tiza); border:2px dashed var(--verde);
+    padding:12px 16px; border-radius:10px; font-weight:700; color:var(--verde-oscuro); width:100%; justify-content:center; cursor:pointer;
+  }
+  .file-btn input{ display:none; }
+  .equipo-row{ display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--linea); flex-wrap:wrap; }
+  .equipo-row:last-child{ border-bottom:none; }
+  .equipo-row .nombre{ flex:1; font-weight:700; min-width:120px; }
+  .equipo-row .crest-md-sm{ width:40px; height:40px; border-radius:50%; object-fit:cover; background:var(--tiza); border:1px solid var(--linea); flex-shrink:0; }
+
+  .toast{
+    position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--verde-oscuro); color:var(--tiza);
+    padding:14px 22px; border-radius:12px; font-weight:800; box-shadow:0 8px 20px rgba(0,0,0,.3); z-index:200; max-width:90%; text-align:center;
+  }
+  .loader-note{ text-align:center; padding:40px 10px; color:#6b6659; font-weight:700; }
+
+  /* export */
+  #exportHolder{ position:fixed; left:-9999px; top:0; }
+  .export-card{ width:720px; background:var(--tiza); font-family:'Inter',sans-serif; padding:28px; }
+  .export-header{ display:flex; align-items:center; gap:16px; margin-bottom:18px; border-bottom:4px solid var(--dorado); padding-bottom:14px; }
+  .export-logo{ width:64px; height:64px; border-radius:50%; object-fit:cover; border:3px solid var(--verde); }
+  .export-torneo{ font-family:'Anton',sans-serif; font-size:1.5rem; color:var(--verde-oscuro); text-transform:uppercase; }
+  .export-zona{ font-weight:700; color:var(--dorado); }
+  table.export-table{ width:100%; border-collapse:collapse; }
+  table.export-table th{ background:var(--verde); color:var(--tiza); padding:10px 8px; font-size:.78rem; text-transform:uppercase; }
+  table.export-table td{ padding:9px 8px; text-align:center; border-bottom:1px solid var(--linea); font-weight:600; }
+  table.export-table tr.lider td{ background:#FDF0C6; }
+  .export-equipo{ display:flex; align-items:center; gap:8px; text-align:left; font-weight:800; }
+  .export-equipo img{ width:26px; height:26px; border-radius:50%; object-fit:cover; }
+  td.pts{ font-weight:800; color:var(--verde-oscuro); }
+  .export-footer{ text-align:center; margin-top:16px; color:#8a8574; font-size:.85rem; font-weight:600; }
+</style>
 </head>
-<body class="bg-gray-100 text-gray-800 min-h-screen flex flex-col justify-between font-sans">
+<body>
+<div id="app"></div>
+<div id="exportHolder"></div>
 
-    <header class="bg-blue-900 text-white p-4 shadow-lg text-center">
-        <h1 class="text-2xl md:text-3xl font-bold tracking-wide">Torneos de Fútbol</h1>
-    </header>
+<script>
+/* =======================================================================
+   CONFIGURACIÓN
+   ======================================================================= */
+const TORNEOS = {
+  veteranos50: {
+    id:'veteranos50', nombre:'Torneo Veteranos +50',
+    zonas:[ { id:'unica', nombre:'Zona Única' } ]
+  },
+  masCuarenta: {
+    id:'masCuarenta', nombre:'Torneo +40',
+    zonas:[ { id:'a', nombre:'Zona A' }, { id:'b', nombre:'Zona B' } ]
+  }
+};
+const ADMIN_PASSWORD = 'adila2026';
 
-    <main class="max-w-5xl w-full mx-auto p-4 flex-grow">
-        <div class="flex flex-col sm:flex-row justify-center border-b border-gray-300 mb-6 gap-1">
-            <button onclick="cambiarTorneo('zona1')" id="tab-zona1" class="tab-btn py-3 px-4 font-semibold text-center border-b-4 border-blue-900 text-blue-900 bg-white rounded-t-lg shadow-sm">
-                Zona 1 Andres "NANO" Cabrera
-            </button>
-            <button onclick="cambiarTorneo('zona2')" id="tab-zona2" class="tab-btn py-3 px-4 font-semibold text-center border-b-4 border-transparent text-gray-600 hover:text-blue-900 bg-gray-50 rounded-t-lg">
-                Zona 2 Andres "NANO" Cabrera
-            </button>
-            <button onclick="cambiarTorneo('veteranos')" id="tab-veteranos" class="tab-btn py-3 px-4 font-semibold text-center border-b-4 border-transparent text-gray-600 hover:text-blue-900 bg-gray-50 rounded-t-lg">
-                TORNEO CAROLINA CELIZ VETERANOS+50
-            </button>
+const firebaseConfig = {
+  apiKey: "AIzaSyAULw31PlNW07zg4G8XhVWlTngSiTjdXVQ",
+  authDomain: "torneosadila2.firebaseapp.com",
+  projectId: "torneosadila2",
+  storageBucket: "torneosadila2.firebasestorage.app",
+  messagingSenderId: "997767741356",
+  appId: "1:997767741356:web:79cb30fe0721be6e370409"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const COLECCION = 'torneosAdila';
+
+/* =======================================================================
+   ESTADO
+   ======================================================================= */
+const state = {
+  view:'home',            // home | zonaSelect | torneo | historial | adminTorneo
+  torneoId:null, zonaId:null,
+  subview:'tabla', fechaActual:null,
+  admin:false,
+  cache:{},               // datos por edición/torneo/zona
+  logos:{},
+  ediciones:[],           // [{id, fechaInicio, cerrada}]
+  campeones:{},           // campeones[edicionId] = { torneoId: {...} }
+  edicionId:null,         // edición que se está viendo
+  cargando:true, errorCarga:false, loadingZona:false,
+  toast:null
+};
+
+/* =======================================================================
+   UTILIDADES
+   ======================================================================= */
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+function escapeHtml(s){
+  return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function showToast(msg){
+  state.toast = msg; renderToast();
+  setTimeout(()=>{ state.toast=null; renderToast(); }, 1800);
+}
+function renderToast(){
+  const old = document.querySelector('.toast'); if(old) old.remove();
+  if(state.toast){
+    const d = document.createElement('div'); d.className='toast'; d.textContent = state.toast;
+    document.body.appendChild(d);
+  }
+}
+function fmtFecha(iso){
+  if(!iso) return '';
+  const p = iso.split('-'); if(p.length!==3) return iso;
+  return `${p[2]}/${p[1]}/${p[0]}`;
+}
+function hoyISO(){
+  const d = new Date();
+  const m = String(d.getMonth()+1).padStart(2,'0'), dd = String(d.getDate()).padStart(2,'0');
+  return `${d.getFullYear()}-${m}-${dd}`;
+}
+function resizeImageToDataURL(file, maxDim){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = (e)=>{
+      const img = new Image();
+      img.onload = ()=>{
+        let w = img.width, h = img.height;
+        if(w>h){ if(w>maxDim){ h = Math.round(h*maxDim/w); w = maxDim; } }
+        else { if(h>maxDim){ w = Math.round(w*maxDim/h); h = maxDim; } }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img,0,0,w,h);
+        resolve(canvas.toDataURL('image/png'));
+      };
+      img.onerror = ()=>reject(new Error('imagen invalida'));
+      img.src = e.target.result;
+    };
+    reader.onerror = ()=>reject(new Error('lectura fallida'));
+    reader.readAsDataURL(file);
+  });
+}
+
+/* ---- Ediciones (cada torneo nuevo es una "edición" con nombre = fecha de inicio) ---- */
+function ultimaEdicion(){ return state.ediciones[state.ediciones.length-1]; }
+function edicionVista(){ return state.ediciones.find(e=>e.id===state.edicionId) || ultimaEdicion(); }
+function nombreEdicion(ed){
+  if(!ed) return '';
+  if(ed.fechaInicio) return 'Torneo ' + fmtFecha(ed.fechaInicio);
+  return ed.cerrada ? 'Torneo anterior' : 'Torneo en curso';
+}
+function puedeEditar(){
+  const ed = edicionVista();
+  return state.admin && ed && !ed.cerrada;
+}
+
+/* =======================================================================
+   ALMACENAMIENTO (Firebase)
+   ======================================================================= */
+async function storageGet(key){
+  const doc = await db.collection(COLECCION).doc(key).get();   // si falla, lanza error
+  return doc.exists ? doc.data().value : null;
+}
+async function storageSet(key, value){
+  try{
+    await db.collection(COLECCION).doc(key).set({ value });
+    return true;
+  }catch(e){
+    console.error('Error guardando', key, e);
+    alert('No se pudo guardar. Revisá tu conexión a internet e intentá de nuevo.');
+    return false;
+  }
+}
+/* La primera edición usa las claves originales (así no se pierde lo ya cargado). */
+function sk(prefix, edId, t, z){
+  return edId==='inicial' ? `${prefix}-${t}-${z}` : `${prefix}-${edId}-${t}-${z}`;
+}
+async function getEquipos(edId,t,z){ const v = await storageGet(sk('equipos',edId,t,z)); return v ? JSON.parse(v) : []; }
+async function saveEquipos(edId,t,z,arr){ return storageSet(sk('equipos',edId,t,z), JSON.stringify(arr)); }
+async function getFechas(edId,t,z){ const v = await storageGet(sk('fechas',edId,t,z)); return v ? JSON.parse(v) : []; }
+async function saveFechas(edId,t,z,arr){ return storageSet(sk('fechas',edId,t,z), JSON.stringify(arr)); }
+async function saveEdiciones(){ return storageSet('ediciones', JSON.stringify(state.ediciones)); }
+async function saveCampeones(edId){ return storageSet('campeones-'+edId, JSON.stringify(state.campeones[edId]||{})); }
+async function getLogo(torneoId){ return await storageGet('logo-'+torneoId); }
+
+async function loadEdiciones(){
+  const v = await storageGet('ediciones');
+  if(v){ state.ediciones = JSON.parse(v); }
+  else {
+    state.ediciones = [{ id:'inicial', fechaInicio:null, cerrada:false }];
+    await saveEdiciones();
+  }
+}
+async function loadCampeones(){
+  await Promise.all(state.ediciones.filter(e=>e.cerrada).map(async e=>{
+    try{
+      const v = await storageGet('campeones-'+e.id);
+      state.campeones[e.id] = v ? JSON.parse(v) : {};
+    }catch(err){ state.campeones[e.id] = {}; }
+  }));
+}
+
+function ckey(edId,t,z){ return edId+'|'+t+'|'+z; }
+async function ensureZonaData(edId,t,z){
+  const key = ckey(edId,t,z);
+  if(state.cache[key]) return true;
+  state.loadingZona = true; render();
+  try{
+    const [equipos, fechas] = await Promise.all([getEquipos(edId,t,z), getFechas(edId,t,z)]);
+    state.cache[key] = { equipos, fechas };
+    state.loadingZona = false;
+    return true;
+  }catch(e){
+    state.loadingZona = false;
+    alert('No se pudieron cargar los datos. Revisá tu conexión a internet.');
+    return false;
+  }
+}
+function getCache(){ return state.cache[ckey(state.edicionId, state.torneoId, state.zonaId)]; }
+
+/* =======================================================================
+   TABLA DE POSICIONES
+   ======================================================================= */
+function computeTabla(equipos, fechas){
+  const stats = {};
+  equipos.forEach(e=>{ stats[e.id] = { id:e.id, nombre:e.nombre, escudo:e.escudo||null, pj:0,pg:0,pe:0,pp:0,gf:0,gc:0,pts:0 }; });
+  fechas.forEach(f=>{
+    (f.partidos||[]).forEach(p=>{
+      if(!p.jugado) return;
+      const l = stats[p.localId], v = stats[p.visitanteId];
+      if(!l || !v) return;
+      const gl = Number(p.golesLocal)||0, gv = Number(p.golesVisitante)||0;
+      l.pj++; v.pj++; l.gf+=gl; l.gc+=gv; v.gf+=gv; v.gc+=gl;
+      if(gl>gv){ l.pg++; l.pts+=3; v.pp++; }
+      else if(gl<gv){ v.pg++; v.pts+=3; l.pp++; }
+      else { l.pe++; v.pe++; l.pts+=1; v.pts+=1; }
+    });
+  });
+  const arr = Object.values(stats);
+  arr.sort((a,b)=> b.pts-a.pts || (b.gf-b.gc)-(a.gf-a.gc) || b.gf-a.gf || a.nombre.localeCompare(b.nombre,'es'));
+  return arr;
+}
+
+/* =======================================================================
+   NAVEGACIÓN
+   ======================================================================= */
+function goHome(){ state.view='home'; state.torneoId=null; state.zonaId=null; render(); }
+function goHistorial(){ state.view='historial'; render(); }
+function verEdicion(id){ state.edicionId=id; state.view='home'; state.torneoId=null; state.zonaId=null; render(); window.scrollTo(0,0); }
+function volverActual(){ verEdicion(ultimaEdicion().id); }
+function goTorneo(torneoId){
+  const t = TORNEOS[torneoId];
+  if(t.zonas.length>1){ state.view='zonaSelect'; state.torneoId=torneoId; render(); }
+  else { enterZona(torneoId, t.zonas[0].id); }
+}
+async function enterZona(torneoId, zonaId){
+  state.torneoId=torneoId; state.zonaId=zonaId; state.view='torneo'; state.subview='tabla'; state.fechaActual=null;
+  const ok = await ensureZonaData(state.edicionId, torneoId, zonaId);
+  if(!ok){ goHome(); return; }
+  const c = getCache();
+  if(c && c.fechas.length){ state.fechaActual = c.fechas[c.fechas.length-1].numero; }
+  render();
+}
+function setSubview(v){
+  state.subview=v;
+  if(v==='fixture'){ const c=getCache(); if(c && c.fechas.length && state.fechaActual==null){ state.fechaActual = c.fechas[c.fechas.length-1].numero; } }
+  render();
+}
+async function goAdminTorneo(){
+  state.view='adminTorneo'; render();
+  const ed = ultimaEdicion();
+  const tareas = [];
+  Object.values(TORNEOS).forEach(t=>t.zonas.forEach(z=>tareas.push(ensureZonaData(ed.id,t.id,z.id))));
+  await Promise.all(tareas);
+  render();
+}
+
+/* =======================================================================
+   ADMIN
+   ======================================================================= */
+function adminLogin(){
+  const pass = prompt('Ingresá la contraseña de administrador:');
+  if(pass==null) return;
+  if(pass === ADMIN_PASSWORD){ state.admin = true; render(); showToast('Modo administrador activado ✔'); }
+  else { alert('Contraseña incorrecta.'); }
+}
+function adminLogout(){
+  if(confirm('¿Cerrar la sesión de administrador?')){
+    state.admin=false;
+    if(state.view==='adminTorneo') state.view='home';
+    render();
+  }
+}
+
+/* =======================================================================
+   EQUIPOS
+   ======================================================================= */
+async function addEquipo(){
+  const input = document.getElementById('nuevoEquipoNombre');
+  const nombre = input.value.trim();
+  if(!nombre){ alert('Escribí el nombre del equipo.'); return; }
+  const c = getCache();
+  c.equipos.push({ id:uid(), nombre, escudo:null });
+  if(await saveEquipos(state.edicionId, state.torneoId, state.zonaId, c.equipos)){
+    render(); showToast('Equipo agregado ✔');
+  }
+}
+async function eliminarEquipo(equipoId){
+  if(!confirm('¿Eliminar este equipo? También se perderán sus partidos cargados.')) return;
+  const c = getCache();
+  c.equipos = c.equipos.filter(e=>e.id!==equipoId);
+  c.fechas.forEach(f=>{ f.partidos = (f.partidos||[]).filter(p=>p.localId!==equipoId && p.visitanteId!==equipoId); });
+  await Promise.all([
+    saveEquipos(state.edicionId, state.torneoId, state.zonaId, c.equipos),
+    saveFechas(state.edicionId, state.torneoId, state.zonaId, c.fechas)
+  ]);
+  render(); showToast('Equipo eliminado');
+}
+async function renombrarEquipo(equipoId){
+  const c = getCache();
+  const eq = c.equipos.find(e=>e.id===equipoId); if(!eq) return;
+  const nuevo = prompt('Nuevo nombre del equipo:', eq.nombre);
+  if(nuevo==null) return;
+  const n = nuevo.trim(); if(!n) return;
+  eq.nombre = n;
+  if(await saveEquipos(state.edicionId, state.torneoId, state.zonaId, c.equipos)){ render(); showToast('Nombre actualizado ✔'); }
+}
+async function onEscudoEquipoChange(equipoId, inputEl){
+  const file = inputEl.files[0]; if(!file) return;
+  try{
+    const dataUrl = await resizeImageToDataURL(file, 140);
+    const c = getCache();
+    const eq = c.equipos.find(e=>e.id===equipoId);
+    if(eq){
+      eq.escudo = dataUrl;
+      if(await saveEquipos(state.edicionId, state.torneoId, state.zonaId, c.equipos)){ render(); showToast('Escudo actualizado ✔'); }
+    }
+  }catch(err){ alert('No se pudo cargar la imagen. Probá con otra foto.'); }
+}
+async function onLogoTorneoChange(inputEl){
+  const file = inputEl.files[0]; if(!file) return;
+  try{
+    const dataUrl = await resizeImageToDataURL(file, 200);
+    state.logos[state.torneoId] = dataUrl;
+    if(await storageSet('logo-'+state.torneoId, dataUrl)){ render(); showToast('Logo del torneo actualizado ✔'); }
+  }catch(err){ alert('No se pudo cargar la imagen. Probá con otra foto.'); }
+}
+
+/* =======================================================================
+   FECHAS Y PARTIDOS  (el equipo sin rival queda LIBRE automáticamente)
+   ======================================================================= */
+function nuevaFecha(){
+  const c = getCache();
+  const numero = c.fechas.reduce((m,f)=>Math.max(m,f.numero),0)+1;
+  c.fechas.push({ numero, partidos:[] });
+  saveFechas(state.edicionId, state.torneoId, state.zonaId, c.fechas);
+  state.fechaActual = numero;
+  render();
+}
+function irAFecha(n){ state.fechaActual = n; render(); }
+function equiposConRival(fecha){
+  const usados = new Set();
+  (fecha.partidos||[]).forEach(p=>{ usados.add(p.localId); usados.add(p.visitanteId); });
+  return usados;
+}
+function equiposDisponiblesEnFecha(fecha){
+  const usados = equiposConRival(fecha);
+  return getCache().equipos.filter(e=>!usados.has(e.id));
+}
+function equiposLibres(fecha){
+  if(!(fecha.partidos||[]).length) return [];
+  const usados = equiposConRival(fecha);
+  return getCache().equipos.filter(e=>!usados.has(e.id));
+}
+async function agregarPartido(){
+  const c = getCache();
+  const fecha = c.fechas.find(f=>f.numero===state.fechaActual);
+  if(!fecha) return;
+  const localId = document.getElementById('selLocal').value;
+  const visitanteId = document.getElementById('selVisitante').value;
+  if(!localId || !visitanteId){ alert('Elegí ambos equipos.'); return; }
+  if(localId===visitanteId){ alert('Un equipo no puede jugar contra sí mismo.'); return; }
+  fecha.partidos = fecha.partidos || [];
+  fecha.partidos.push({ id:uid(), localId, visitanteId, golesLocal:0, golesVisitante:0, jugado:false });
+  if(await saveFechas(state.edicionId, state.torneoId, state.zonaId, c.fechas)){ render(); showToast('Partido agregado ✔'); }
+}
+async function eliminarPartido(partidoId){
+  if(!confirm('¿Eliminar este partido?')) return;
+  const c = getCache();
+  const fecha = c.fechas.find(f=>f.numero===state.fechaActual);
+  fecha.partidos = fecha.partidos.filter(p=>p.id!==partidoId);
+  await saveFechas(state.edicionId, state.torneoId, state.zonaId, c.fechas);
+  render();
+}
+async function guardarResultado(partidoId){
+  const c = getCache();
+  const fecha = c.fechas.find(f=>f.numero===state.fechaActual);
+  const p = fecha.partidos.find(x=>x.id===partidoId);
+  p.golesLocal = Math.max(0, parseInt(document.getElementById('gl-'+partidoId).value,10)||0);
+  p.golesVisitante = Math.max(0, parseInt(document.getElementById('gv-'+partidoId).value,10)||0);
+  p.jugado = document.getElementById('jg-'+partidoId).checked;
+  if(await saveFechas(state.edicionId, state.torneoId, state.zonaId, c.fechas)){ render(); showToast('Resultado guardado ✔'); }
+}
+function stepScore(partidoId, campo, delta){
+  const el = document.getElementById(campo+'-'+partidoId);
+  el.value = Math.max(0, (parseInt(el.value,10)||0)+delta);
+}
+async function eliminarFecha(){
+  if(!confirm('¿Eliminar esta fecha completa junto con sus partidos cargados?')) return;
+  const c = getCache();
+  c.fechas = c.fechas.filter(f=>f.numero!==state.fechaActual);
+  await saveFechas(state.edicionId, state.torneoId, state.zonaId, c.fechas);
+  state.fechaActual = c.fechas.length ? c.fechas[c.fechas.length-1].numero : null;
+  render();
+}
+
+/* =======================================================================
+   TERMINAR TORNEO / CREAR TORNEO NUEVO
+   ======================================================================= */
+async function guardarFechaInicio(){
+  const v = document.getElementById('fechaInicioInput').value;
+  if(!v){ alert('Elegí la fecha en que empezó el torneo.'); return; }
+  const ed = ultimaEdicion();
+  ed.fechaInicio = v;
+  if(await saveEdiciones()){ render(); showToast('Fecha guardada ✔'); }
+}
+async function terminarTorneo(){
+  const ed = ultimaEdicion();
+  if(!ed.fechaInicio){ alert('Primero guardá la fecha en que empezó este torneo (primer recuadro). Con esa fecha se va a llamar el torneo en el historial.'); return; }
+  const campeones = {};
+  Object.values(TORNEOS).forEach(t=>{
+    const sel = document.getElementById('camp-'+t.id);
+    if(!sel || !sel.value) return;
+    const [zId, eId] = sel.value.split('|');
+    const c = state.cache[ckey(ed.id,t.id,zId)];
+    const eq = c && c.equipos.find(e=>e.id===eId);
+    const zona = t.zonas.find(z=>z.id===zId);
+    if(eq) campeones[t.id] = { equipoId:eq.id, nombre:eq.nombre, escudo:eq.escudo||null, zonaId:zId, zonaNombre:zona.nombre };
+  });
+  if(!Object.keys(campeones).length && !confirm('No elegiste ningún campeón. ¿Querés terminar el torneo igual?')) return;
+  if(!confirm('¿Terminar el torneo? Después no se van a poder cargar más resultados (solo verlos).')) return;
+  ed.cerrada = true;
+  state.campeones[ed.id] = campeones;
+  const ok1 = await saveCampeones(ed.id);
+  const ok2 = await saveEdiciones();
+  if(!ok1 || !ok2){ ed.cerrada=false; render(); return; }
+  render(); showToast('Torneo terminado ✔ Campeones guardados');
+}
+async function reabrirTorneo(){
+  if(!confirm('¿Volver a abrir el torneo para corregir datos? Se van a borrar los campeones guardados y vas a tener que elegirlos de nuevo al terminarlo.')) return;
+  const ed = ultimaEdicion();
+  ed.cerrada = false;
+  state.campeones[ed.id] = {};
+  await saveCampeones(ed.id);
+  await saveEdiciones();
+  render(); showToast('Torneo reabierto');
+}
+async function crearNuevoTorneo(){
+  const fecha = document.getElementById('nuevaFechaInicio').value;
+  if(!fecha){ alert('Elegí la fecha en que empieza el nuevo torneo.'); return; }
+  if(!confirm('¿Crear el torneo nuevo con fecha de inicio '+fmtFecha(fecha)+'? Se van a copiar los equipos del torneo anterior.')) return;
+  const previo = ultimaEdicion();
+  const nuevo = { id:uid(), fechaInicio:fecha, cerrada:false };
+  showToast('Creando torneo nuevo…');
+  try{
+    for(const t of Object.values(TORNEOS)){
+      for(const z of t.zonas){
+        const key = ckey(previo.id,t.id,z.id);
+        const equipos = state.cache[key] ? state.cache[key].equipos : await getEquipos(previo.id,t.id,z.id);
+        const copia = equipos.map(e=>({ id:e.id, nombre:e.nombre, escudo:e.escudo||null }));
+        const ok1 = await saveEquipos(nuevo.id,t.id,z.id,copia);
+        const ok2 = await saveFechas(nuevo.id,t.id,z.id,[]);
+        if(!ok1 || !ok2) return;
+        state.cache[ckey(nuevo.id,t.id,z.id)] = { equipos:copia, fechas:[] };
+      }
+    }
+  }catch(e){ alert('No se pudo crear el torneo. Revisá tu conexión e intentá de nuevo.'); return; }
+  state.ediciones.push(nuevo);
+  if(!(await saveEdiciones())){ state.ediciones.pop(); return; }
+  state.edicionId = nuevo.id;
+  state.view = 'home';
+  render(); window.scrollTo(0,0);
+  showToast('Torneo nuevo creado ✔ Revisá los equipos en cada zona');
+}
+
+/* =======================================================================
+   DESCARGA DE TABLA
+   ======================================================================= */
+function buildExportHTML(torneo, zona, tabla){
+  const logo = state.logos[torneo.id];
+  const fecha = new Date().toLocaleDateString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric' });
+  const filas = tabla.map((e,i)=>`
+    <tr class="${i===0?'lider':''}">
+      <td>${i+1}</td>
+      <td class="export-equipo">${e.escudo?`<img src="${e.escudo}">`:''}<span>${escapeHtml(e.nombre)}</span></td>
+      <td>${e.pj}</td><td>${e.pg}</td><td>${e.pe}</td><td>${e.pp}</td>
+      <td>${e.gf}</td><td>${e.gc}</td><td>${e.gf-e.gc}</td>
+      <td class="pts">${e.pts}</td>
+    </tr>`).join('');
+  return `<div class="export-card">
+    <div class="export-header">
+      ${logo?`<img class="export-logo" src="${logo}">`:''}
+      <div>
+        <div class="export-torneo">${escapeHtml(torneo.nombre)}</div>
+        <div class="export-zona">${escapeHtml(zona.nombre)} · ${escapeHtml(nombreEdicion(edicionVista()))}</div>
+      </div>
+    </div>
+    <table class="export-table">
+      <thead><tr><th>#</th><th>Equipo</th><th>PJ</th><th>PG</th><th>PE</th><th>PP</th><th>GF</th><th>GC</th><th>DIF</th><th>PTS</th></tr></thead>
+      <tbody>${filas || '<tr><td colspan="10">Sin equipos cargados</td></tr>'}</tbody>
+    </table>
+    <div class="export-footer">Actualizado el ${fecha} · Torneos Adila</div>
+  </div>`;
+}
+async function descargarTabla(tipo){
+  if(typeof html2canvas==='undefined'){ alert('No se pudo cargar la herramienta de descarga. Revisá tu conexión e intentá de nuevo.'); return; }
+  const torneo = TORNEOS[state.torneoId];
+  const zona = torneo.zonas.find(z=>z.id===state.zonaId);
+  const c = getCache();
+  const tabla = computeTabla(c.equipos, c.fechas);
+  const holder = document.getElementById('exportHolder');
+  holder.innerHTML = buildExportHTML(torneo, zona, tabla);
+  await new Promise(r=>setTimeout(r,120));
+  try{
+    const canvas = await html2canvas(holder.firstElementChild, { scale:2, backgroundColor:'#F7F5EF' });
+    const nombre = `tabla-${torneo.id}-${zona.id}`;
+    if(tipo==='png'){
+      const link = document.createElement('a');
+      link.download = nombre+'.png'; link.href = canvas.toDataURL('image/png'); link.click();
+    } else {
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({ orientation:'portrait', unit:'pt', format:'a4' });
+      const imgW = pdf.internal.pageSize.getWidth()-40;
+      const imgH = canvas.height*(imgW/canvas.width);
+      pdf.addImage(canvas.toDataURL('image/png'),'PNG',20,20,imgW,imgH);
+      pdf.save(nombre+'.pdf');
+    }
+  }catch(err){
+    alert('No se pudo generar el archivo. Intentá de nuevo.');
+  } finally { holder.innerHTML=''; }
+}
+
+/* =======================================================================
+   RENDER: piezas comunes
+   ======================================================================= */
+function renderTopbar(title, showBack, onBack){
+  return `
+  <div class="topbar">
+    <div class="topbar-left">
+      ${showBack ? `<button class="back-btn" aria-label="Volver" onclick="${onBack}">←</button>` : ''}
+      <div class="topbar-title">${escapeHtml(title)}</div>
+    </div>
+    ${state.admin
+      ? `<button class="admin-pill on" onclick="adminLogout()">✓ Administrador · Salir</button>`
+      : `<button class="admin-pill" onclick="adminLogin()">🔒 Administradores</button>`}
+  </div>`;
+}
+
+/* Campeones enmarcados */
+function renderCampeones(ed){
+  const camp = state.campeones[ed.id] || {};
+  const items = Object.values(TORNEOS).map(t=>{
+    const c = camp[t.id]; if(!c) return '';
+    const sub = t.zonas.length>1 ? `${t.nombre} · ${c.zonaNombre}` : t.nombre;
+    return `
+      <div class="champ-frame">
+        <div class="champ-ribbon">🏆 CAMPEÓN</div>
+        <div class="champ-crest">${c.escudo?`<img src="${c.escudo}" alt="">`:'🛡️'}</div>
+        <div class="champ-team">${escapeHtml(c.nombre)}</div>
+        <div class="champ-torneo">${escapeHtml(sub)}</div>
+      </div>`;
+  }).join('');
+  return items ? `<div class="champ-grid">${items}</div>` : '';
+}
+
+/* =======================================================================
+   RENDER: HOME
+   ======================================================================= */
+function renderHome(){
+  const ed = edicionVista();
+  const esActual = ed.id === ultimaEdicion().id;
+  const logoV = state.logos.veteranos50, logoM = state.logos.masCuarenta;
+  const champs = ed.cerrada ? renderCampeones(ed) : '';
+  document.getElementById('app').innerHTML = `
+    ${renderTopbar('Torneos Adila', false)}
+    <div class="hero">
+      <h1>Torneos Adila</h1>
+      <p>${escapeHtml(nombreEdicion(ed))}${ed.cerrada?' · Finalizado':''}</p>
+    </div>
+    <div class="torneo-grid">
+      <button class="torneo-card" onclick="goTorneo('veteranos50')">
+        <div class="crest-slot">${logoV?`<img src="${logoV}" alt="">`:'🏆'}</div>
+        <div class="torneo-card-name">Veteranos +50</div>
+        <div class="torneo-card-sub">Zona única</div>
+      </button>
+      <button class="torneo-card" onclick="goTorneo('masCuarenta')">
+        <div class="crest-slot">${logoM?`<img src="${logoM}" alt="">`:'🏆'}</div>
+        <div class="torneo-card-name">+40</div>
+        <div class="torneo-card-sub">Zona A y Zona B</div>
+      </button>
+    </div>
+    <div class="wrap">
+      ${!esActual ? `
+        <div class="banner">
+          <span>📜 Estás viendo un torneo anterior</span>
+          <button class="btn btn-primary" onclick="volverActual()">Ir al torneo actual</button>
+        </div>` : ''}
+      ${ed.cerrada && champs ? `<h2 class="champ-title">🏆 Campeones del torneo</h2>${champs}` : ''}
+      <div class="home-actions">
+        <button class="btn btn-gold btn-block" onclick="goHistorial()">📜 Historial de torneos y campeones</button>
+        ${state.admin && esActual ? `<button class="btn btn-outline btn-block" onclick="goAdminTorneo()">⚙️ Administrar torneo (terminar / crear nuevo)</button>` : ''}
+      </div>
+      <p style="text-align:center;color:#6b6659;font-weight:600;margin-top:26px;">
+        Este link se puede compartir con todos: cualquiera puede ver las tablas y resultados.
+        Solo los administradores pueden cargar o modificar datos.
+      </p>
+    </div>
+  `;
+}
+
+/* =======================================================================
+   RENDER: HISTORIAL
+   ======================================================================= */
+function renderHistorial(){
+  const cerradas = state.ediciones.filter(e=>e.cerrada).slice().reverse();
+  const lista = cerradas.map(ed=>{
+    const champs = renderCampeones(ed);
+    return `
+      <div class="hist-card">
+        <h3>${escapeHtml(nombreEdicion(ed))}</h3>
+        <div class="hist-sub">Torneo finalizado</div>
+        ${champs || '<p class="empty-note">No se registraron campeones en este torneo.</p>'}
+        <button class="btn btn-outline btn-block" onclick="verEdicion('${ed.id}')">Ver tablas y resultados de este torneo</button>
+      </div>`;
+  }).join('');
+  document.getElementById('app').innerHTML = `
+    ${renderTopbar('Historial de torneos', true, 'goHome()')}
+    <div class="wrap section">
+      <h2 class="section-title">📜 Torneos anteriores</h2>
+      ${lista || '<p class="empty-note">Todavía no hay torneos terminados. Cuando se termine un torneo, los campeones van a quedar guardados acá.</p>'}
+    </div>`;
+}
+
+/* =======================================================================
+   RENDER: ADMINISTRAR TORNEO
+   ======================================================================= */
+function opcionesCampeon(ed, torneo){
+  const unaZona = torneo.zonas.length===1;
+  let html = '<option value="">— Elegí al campeón —</option>';
+  torneo.zonas.forEach(z=>{
+    const c = state.cache[ckey(ed.id,torneo.id,z.id)]; if(!c) return;
+    const tabla = computeTabla(c.equipos, c.fechas);
+    const opts = tabla.map((e,i)=>`<option value="${z.id}|${e.id}" ${unaZona && i===0 && e.pj>0 ? 'selected':''}>${i+1}° ${escapeHtml(e.nombre)} (${e.pts} pts)</option>`).join('');
+    html += unaZona ? opts : `<optgroup label="${escapeHtml(z.nombre)}">${opts}</optgroup>`;
+  });
+  return html;
+}
+function renderAdminTorneo(){
+  const ed = ultimaEdicion();
+  let cuerpo = '';
+  if(!ed.cerrada){
+    cuerpo = `
+      <div class="card card-admin">
+        <div class="card-title">📅 Fecha en que empezó este torneo</div>
+        <p class="help">Con esta fecha se llama el torneo en el historial.</p>
+        <div class="field"><input type="date" id="fechaInicioInput" value="${ed.fechaInicio||''}"></div>
+        <button class="btn btn-primary btn-block" onclick="guardarFechaInicio()">Guardar fecha</button>
+      </div>
+      <div class="card card-admin">
+        <div class="card-title">🏁 Terminar el torneo y guardar campeones</div>
+        <p class="help">Elegí quién fue el campeón de cada torneo. Si en el +40 hubo final, elegí al ganador de la final. Después de terminar, ya no se pueden cargar resultados.</p>
+        ${Object.values(TORNEOS).map(t=>`
+          <div class="field">
+            <label for="camp-${t.id}">Campeón del ${escapeHtml(t.nombre)}</label>
+            <select id="camp-${t.id}">${opcionesCampeon(ed,t)}</select>
+          </div>`).join('')}
+        <button class="btn btn-gold btn-block" onclick="terminarTorneo()">🏆 Terminar torneo y guardar campeones</button>
+      </div>`;
+  } else {
+    cuerpo = `
+      <div class="card">
+        <div class="card-title">✅ ${escapeHtml(nombreEdicion(ed))} está terminado</div>
+        ${renderCampeones(ed)}
+        <button class="btn btn-danger btn-block" onclick="reabrirTorneo()">↩️ Volver a abrir este torneo (para corregir algo)</button>
+      </div>
+      <div class="card card-admin">
+        <div class="card-title">🆕 Crear torneo nuevo</div>
+        <p class="help">Se guardan los equipos y escudos del torneo anterior. Después, dentro de cada zona, en la pestaña "Equipos" podés agregar equipos nuevos o borrar los que no sigan.</p>
+        <div class="field">
+          <label for="nuevaFechaInicio">¿Qué día empieza el torneo nuevo?</label>
+          <input type="date" id="nuevaFechaInicio" value="${hoyISO()}">
         </div>
+        <button class="btn btn-primary btn-block" onclick="crearNuevoTorneo()">Crear torneo nuevo</button>
+      </div>`;
+  }
+  document.getElementById('app').innerHTML = `
+    ${renderTopbar('Administrar torneo', true, 'goHome()')}
+    <div class="wrap section">
+      <span class="ed-chip ${ed.cerrada?'fin':''}">${escapeHtml(nombreEdicion(ed))}${ed.cerrada?' · Finalizado':' · En curso'}</span>
+      ${cuerpo}
+    </div>`;
+}
 
-        <div class="bg-white rounded-xl shadow-md p-4 md:p-6 relative overflow-hidden">
-            <div id="marca-agua-container" class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-10 z-0">
-                <img id="marca-agua-img" class="max-w-[70%] max-h-[70%] object-contain hidden" alt="Marca de Agua Torneo">
-            </div>
+/* =======================================================================
+   RENDER: ZONAS
+   ======================================================================= */
+function renderZonaSelect(){
+  const torneo = TORNEOS[state.torneoId];
+  document.getElementById('app').innerHTML = `
+    ${renderTopbar(torneo.nombre, true, 'goHome()')}
+    <div class="wrap section">
+      <span class="ed-chip ${edicionVista().cerrada?'fin':''}">${escapeHtml(nombreEdicion(edicionVista()))}</span>
+      <h2 class="section-title">Elegí la zona</h2>
+      <div class="zona-grid">
+        ${torneo.zonas.map(z=>`
+          <button class="zona-btn" onclick="enterZona('${torneo.id}','${z.id}')"><span>${escapeHtml(z.nombre)}</span><span class="tag">Ver →</span></button>
+        `).join('')}
+      </div>
+    </div>`;
+}
 
-            <div class="relative z-10">
-                <div class="flex flex-wrap justify-between items-center gap-2 mb-4 border-b pb-3">
-                    <h2 id="torneo-titulo" class="text-xl font-bold text-gray-800">Zona 1 Andres "NANO" Cabrera</h2>
-                    <div class="flex gap-2">
-                        <button onclick="descargarPDF()" class="bg-red-600 hover:bg-red-700 text-white text-xs md:text-sm px-3 py-1.5 rounded-lg font-semibold transition flex items-center gap-1">
-                            📄 Descargar PDF
-                        </button>
-                        <button onclick="toggleVista()" id="btn-toggle-vista" class="bg-blue-600 hover:bg-blue-700 text-white text-xs md:text-sm px-3 py-1.5 rounded-lg font-semibold transition">
-                            Ver Tabla de Posiciones
-                        </button>
-                    </div>
-                </div>
+/* =======================================================================
+   RENDER: TORNEO / ZONA
+   ======================================================================= */
+function renderTorneoView(){
+  const torneo = TORNEOS[state.torneoId];
+  const zona = torneo.zonas.find(z=>z.id===state.zonaId);
+  const backAction = torneo.zonas.length>1 ? `goTorneo('${torneo.id}')` : 'goHome()';
+  const titulo = torneo.zonas.length>1 ? `${torneo.nombre} · ${zona.nombre}` : torneo.nombre;
+  const app = document.getElementById('app');
 
-                <div id="contenedor-selector-fecha" class="flex items-center justify-between bg-blue-50 p-2.5 rounded-lg border border-blue-100 mb-4">
-                    <span class="font-bold text-blue-900 text-sm md:text-base">📅 Seleccionar Fecha:</span>
-                    <select id="select-numero-fecha" onchange="cambiarFechaVisualizada(this.value)" class="bg-white border border-gray-300 font-bold text-blue-900 text-sm rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500">
-                        </select>
-                </div>
+  if(state.loadingZona || !getCache()){
+    app.innerHTML = `${renderTopbar(titulo, true, backAction)}<div class="wrap"><p class="loader-note">Cargando datos…</p></div>`;
+    return;
+  }
+  const ed = edicionVista();
+  const editar = puedeEditar();
+  if(state.subview==='equipos' && !editar) state.subview='tabla';
 
-                <div id="contenido-exportable" class="p-2 bg-transparent">
-                    <div id="seccion-fechas" class="space-y-3">
-                        <p class="text-gray-500 text-center py-4">Cargando partidos...</p>
-                    </div>
+  const tabs = `
+    <div class="tabs">
+      <button class="tab-btn ${state.subview==='tabla'?'active':''}" onclick="setSubview('tabla')">📊 Tabla</button>
+      <button class="tab-btn ${state.subview==='fixture'?'active':''}" onclick="setSubview('fixture')">📅 Fechas y resultados</button>
+      ${editar ? `<button class="tab-btn ${state.subview==='equipos'?'active':''}" onclick="setSubview('equipos')">🛡️ Equipos</button>` : ''}
+    </div>`;
 
-                    <div id="seccion-tabla" class="hidden overflow-x-auto">
-                        <table class="w-full text-left border-collapse text-sm md:text-base">
-                            <thead>
-                                <tr class="bg-blue-900 text-white">
-                                    <th class="p-2.5">Equipo</th>
-                                    <th class="p-2.5 text-center">PTS</th>
-                                    <th class="p-2.5 text-center">PJ</th>
-                                    <th class="p-2.5 text-center">PG</th>
-                                    <th class="p-2.5 text-center">PE</th>
-                                    <th class="p-2.5 text-center">PP</th>
-                                    <th class="p-2.5 text-center">GF</th>
-                                    <th class="p-2.5 text-center">GC</th>
-                                    <th class="p-2.5 text-center">DIF</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tabla-body" class="divide-y divide-gray-200">
-                                </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
+  let body = '';
+  if(state.subview==='tabla') body = renderTablaHTML();
+  else if(state.subview==='fixture') body = renderFixtureHTML();
+  else if(state.subview==='equipos') body = renderEquiposHTML();
+
+  app.innerHTML = `
+    ${renderTopbar(titulo, true, backAction)}
+    <div class="wrap section">
+      <span class="ed-chip ${ed.cerrada?'fin':''}">${escapeHtml(nombreEdicion(ed))}${ed.cerrada?' · Finalizado (solo lectura)':''}</span>
+      ${tabs}
+      ${body}
+    </div>`;
+}
+
+function renderTablaHTML(){
+  const c = getCache();
+  const editar = puedeEditar();
+  const tabla = computeTabla(c.equipos, c.fechas);
+  if(!c.equipos.length){
+    return `<p class="empty-note">Todavía no hay equipos cargados en esta zona.${editar?' Andá a la pestaña "Equipos" para agregarlos.':''}</p>`;
+  }
+  const filas = tabla.map((e,i)=>`
+    <tr>
+      <td>${i+1}</td>
+      <td class="equipo-cell"><div class="equipo-cell-inner">
+        ${e.escudo?`<img class="crest-sm" src="${e.escudo}" alt="">`:`<div class="crest-sm-ph">🛡️</div>`}
+        <span>${escapeHtml(e.nombre)}</span>
+      </div></td>
+      <td>${e.pj}</td><td>${e.pg}</td><td>${e.pe}</td><td>${e.pp}</td>
+      <td>${e.gf}</td><td>${e.gc}</td><td>${e.gf-e.gc}</td>
+      <td class="pts-cell">${e.pts}</td>
+    </tr>`).join('');
+  return `
+    <div class="download-row">
+      <button class="btn btn-gold" onclick="descargarTabla('png')">🖼️ Descargar imagen</button>
+      <button class="btn btn-outline" onclick="descargarTabla('pdf')">📄 Descargar PDF</button>
+    </div>
+    <div class="table-scroll">
+      <table class="tabla">
+        <thead><tr>
+          <th>#</th><th class="equipo-cell">Equipo</th><th>PJ</th><th>PG</th><th>PE</th><th>PP</th><th>GF</th><th>GC</th><th>DIF</th><th>PTS</th>
+        </tr></thead>
+        <tbody>${filas}</tbody>
+      </table>
+    </div>`;
+}
+
+function renderFixtureHTML(){
+  const c = getCache();
+  const editar = puedeEditar();
+  if(!c.equipos.length){
+    return `<p class="empty-note">Primero cargá los equipos de la zona${editar?' en la pestaña "Equipos"':''}.</p>`;
+  }
+  const chips = c.fechas.slice().sort((a,b)=>a.numero-b.numero).map(f=>`
+    <button class="fecha-chip ${f.numero===state.fechaActual?'active':''}" onclick="irAFecha(${f.numero})">Fecha ${f.numero}</button>`).join('');
+
+  let contenido = '';
+  const fecha = c.fechas.find(f=>f.numero===state.fechaActual);
+
+  if(!fecha){
+    contenido = `<p class="empty-note">${editar ? 'Todavía no hay fechas creadas. Usá el botón "Nueva fecha" para empezar a cargar resultados.' : 'Todavía no hay fechas cargadas.'}</p>`;
+  } else {
+    const partidosHTML = (fecha.partidos||[]).map(p=>renderMatchCard(p, c, editar)).join('');
+    const libreHTML = equiposLibres(fecha).map(e=>`
+      <div class="libre-card">
+        ${e.escudo?`<img class="crest-sm" src="${e.escudo}" alt="" style="width:40px;height:40px;">`:'🛌'}
+        <span>${escapeHtml(e.nombre)}: fecha libre (no juega ni suma puntos)</span>
+      </div>`).join('');
+
+    contenido = `${libreHTML}${partidosHTML || `<p class="empty-note">Todavía no hay partidos cargados en esta fecha.</p>`}`;
+
+    if(editar){
+      const disp = equiposDisponiblesEnFecha(fecha);
+      const form = disp.length>=2 ? `
+        <div class="card card-admin">
+          <div class="card-title">⚽ Agregar partido a la Fecha ${fecha.numero}</div>
+          <p class="help">Los equipos que no tengan rival en esta fecha quedan <b>libres automáticamente</b>.</p>
+          <div class="field">
+            <label for="selLocal">Equipo local</label>
+            <select id="selLocal"><option value="">Elegí un equipo</option>${disp.map(e=>`<option value="${e.id}">${escapeHtml(e.nombre)}</option>`).join('')}</select>
+          </div>
+          <div class="field">
+            <label for="selVisitante">Equipo visitante</label>
+            <select id="selVisitante"><option value="">Elegí un equipo</option>${disp.map(e=>`<option value="${e.id}">${escapeHtml(e.nombre)}</option>`).join('')}</select>
+          </div>
+          <button class="btn btn-primary btn-block" onclick="agregarPartido()">Agregar partido</button>
+        </div>` : `
+        <div class="card card-admin"><p class="help" style="margin:0;">✅ Ya no quedan equipos para armar más partidos en esta fecha.${disp.length===1?' El equipo que sobra queda libre.':''}</p></div>`;
+      contenido += form + `<button class="btn btn-danger btn-block" onclick="eliminarFecha()">🗑️ Eliminar esta fecha</button>`;
+    }
+  }
+
+  return `
+    <div class="fecha-row">${chips}</div>
+    ${editar ? `<button class="btn btn-outline" style="margin-bottom:16px;" onclick="nuevaFecha()">➕ Nueva fecha</button>` : ''}
+    ${contenido}`;
+}
+
+function renderMatchCard(p, c, editar){
+  const local = c.equipos.find(e=>e.id===p.localId) || { nombre:'—', escudo:null };
+  const visit = c.equipos.find(e=>e.id===p.visitanteId) || { nombre:'—', escudo:null };
+  const crest = (e)=> e.escudo ? `<img class="crest-md" src="${e.escudo}" alt="">` : `<div class="crest-md-ph">🛡️</div>`;
+  const marcador = p.jugado
+    ? `<div class="score-box"><span class="score-num">${p.golesLocal}</span><span class="vs-label">—</span><span class="score-num">${p.golesVisitante}</span></div>`
+    : `<div class="pendiente-label">VS · A jugarse</div>`;
+
+  let adminBlock = '';
+  if(editar){
+    adminBlock = `
+      <div class="match-admin-row">
+        <div class="score-editor">
+          <button class="step-btn" onclick="stepScore('${p.id}','gl',-1)">−</button>
+          <input class="step-input" type="number" min="0" id="gl-${p.id}" value="${p.golesLocal}">
+          <button class="step-btn" onclick="stepScore('${p.id}','gl',1)">+</button>
+          <span class="vs-label" style="margin:0 6px;">—</span>
+          <button class="step-btn" onclick="stepScore('${p.id}','gv',-1)">−</button>
+          <input class="step-input" type="number" min="0" id="gv-${p.id}" value="${p.golesVisitante}">
+          <button class="step-btn" onclick="stepScore('${p.id}','gv',1)">+</button>
         </div>
-    </main>
-
-    <footer class="bg-gray-800 text-white mt-10 p-6">
-        <div class="max-w-md mx-auto text-center">
-            <div id="login-container">
-                <h3 class="text-lg font-semibold mb-3">Acceso Administradores</h3>
-                <form onsubmit="loginAdmin(event)" class="space-y-3">
-                    <input type="email" id="admin-email" placeholder="Correo electrónico" required class="w-full px-3 py-2 rounded text-gray-800 text-sm">
-                    <input type="password" id="admin-pass" placeholder="Contraseña" required class="w-full px-3 py-2 rounded text-gray-800 text-sm">
-                    <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded text-sm font-semibold transition">
-                        Iniciar Sesión
-                    </button>
-                </form>
-            </div>
-
-            <div id="admin-panel" class="hidden bg-gray-700 p-4 rounded-lg text-left space-y-4 shadow-inner">
-                <div class="flex justify-between items-center border-b border-gray-600 pb-2">
-                    <p class="text-green-400 font-bold text-sm">✓ Modo Administrador Activo</p>
-                    <button onclick="logoutAdmin()" class="bg-red-600 hover:bg-red-700 text-xs px-2 py-1 rounded text-white font-semibold">Cerrar Sesión</button>
-                </div>
-
-                <div class="bg-gray-800 p-3 rounded border border-gray-600">
-                    <h5 class="font-bold text-xs text-amber-400 mb-2">🛡️ Cargar Escudo de Equipo (Sincronizado)</h5>
-                    <form onsubmit="guardarEscudoEquipo(event)" class="space-y-2">
-                        <input type="text" id="escudo-nombre-equipo" placeholder="Nombre exacto del equipo" required class="w-full p-2 rounded text-gray-800 text-xs font-medium">
-                        <input type="file" id="escudo-input-file" accept="image/*" required class="w-full text-xs text-gray-300 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-amber-500 file:text-white hover:file:bg-amber-600 cursor-pointer">
-                        <button type="submit" id="btn-guardar-escudo" class="w-full bg-amber-600 hover:bg-amber-700 text-white py-1.5 rounded font-bold text-xs transition">
-                            Guardar Escudo en Firebase
-                        </button>
-                    </form>
-                </div>
-
-                <div class="bg-gray-800 p-3 rounded border border-gray-600">
-                    <h5 class="font-bold text-xs text-amber-400 mb-1">🖼️ Cargar Logo del Torneo (Sincronizado)</h5>
-                    <input type="file" id="input-logo" accept="image/*" onchange="subirLogoFirebase(event)" class="w-full text-xs text-gray-300 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer">
-                </div>
-
-                <div class="border-t border-gray-600 pt-2">
-                    <h4 id="form-titulo" class="font-semibold text-white text-sm">Cargar Resultado o Fecha Libre</h4>
-                    <p id="indicador-edicion" class="text-amber-300 text-xs hidden font-medium mb-2">Modificando un registro existente...</p>
-
-                    <form onsubmit="guardarPartido(event)" class="space-y-3 text-xs md:text-sm">
-                        <input type="hidden" id="partido-id-editando" value="">
-
-                        <div class="flex items-center gap-2 bg-gray-800 p-2 rounded border border-gray-600">
-                            <label for="numero-fecha" class="text-gray-200 font-bold whitespace-nowrap">Fecha N°:</label>
-                            <input type="number" id="numero-fecha" min="1" max="50" value="1" required class="w-20 p-1.5 rounded text-gray-800 font-bold text-center">
-                        </div>
-
-                        <div class="flex items-center gap-2 bg-gray-800 p-2 rounded border border-gray-600">
-                            <input type="checkbox" id="es-libre" onchange="toggleFormularioLibre()" class="w-4 h-4 accent-blue-600 rounded cursor-pointer">
-                            <label for="es-libre" class="text-gray-200 font-medium cursor-pointer">Marcar como Equipo Libre</label>
-                        </div>
-
-                        <div class="flex gap-2 items-center">
-                            <input type="text" id="equipo1" placeholder="Equipo Local" required class="flex-1 p-2 rounded text-gray-800 font-medium">
-                            <input type="number" id="goles1" min="0" placeholder="Goles" required class="w-20 p-2 rounded text-gray-800 text-center font-bold campo-partido">
-                        </div>
-                        
-                        <div id="divisor-vs" class="text-center text-gray-400 font-bold my-1 campo-partido">VS</div>
-                        
-                        <div id="contenedor-equipo2" class="flex gap-2 items-center campo-partido">
-                            <input type="text" id="equipo2" placeholder="Equipo Visitante" required class="flex-1 p-2 rounded text-gray-800 font-medium input-equipo2">
-                            <input type="number" id="goles2" min="0" placeholder="Goles" required class="w-20 p-2 rounded text-gray-800 text-center font-bold input-equipo2">
-                        </div>
-
-                        <div class="flex gap-2 pt-1">
-                            <button type="submit" id="btn-submit-form" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-bold text-sm transition">
-                                Guardar Registro
-                            </button>
-                            <button type="button" id="btn-cancelar-edicion" onclick="cancelarEdicion()" class="hidden bg-gray-500 hover:bg-gray-600 text-white px-3 py-2 rounded-lg font-bold text-sm transition">
-                                Cancelar
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </footer>
-
-    <script>
-        // Configuración de Firebase
-        const firebaseConfig = {
-            apiKey: "AIzaSyA__cxokCbXsjLcm1ZH_jXRxvJQzNgR0t8",
-            authDomain: "torneosadila.firebaseapp.com",
-            projectId: "torneosadila",
-            storageBucket: "torneosadila.firebasestorage.app",
-            messagingSenderId: "974127055671",
-            appId: "1:974127055671:web:d59c856e3f111be7ac50b2",
-            measurementId: "G-MFRTP9RJCF"
-        };
-
-        // Inicializar Firebase
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.firestore();
-
-        let torneoActual = 'zona1';
-        let vistaActual = 'fechas';
-        let fechaSeleccionada = 1;
-        let esAdmin = false;
-        let partidosCargados = [];
-        let escudosEquipos = {}; // Guarda la relación { "nombre_equipo": "imagen_base64" } desde Firebase
-
-        const nombresTorneos = {
-            'zona1': 'Zona 1 Andres "NANO" Cabrera',
-            'zona2': 'Zona 2 Andres "NANO" Cabrera',
-            'veteranos': 'TORNEO CAROLINA CELIZ VETERANOS+50'
-        };
-
-        window.addEventListener('DOMContentLoaded', () => {
-            inicializarSelectorFechas();
-            escucharConfiguracionGlobal();
-            escucharEscudosFirebase();
-        });
-
-        // Escucha en tiempo real el Logo de Agua desde Firebase
-        function escucharConfiguracionGlobal() {
-            db.collection('configuracion').doc('general').onSnapshot(doc => {
-                if (doc.exists && doc.data().logoTorneo) {
-                    mostrarLogoMarcaAgua(doc.data().logoTorneo);
-                }
-            });
-        }
-
-        // Escucha en tiempo real los Escudos de Equipos desde Firebase
-        function escucharEscudosFirebase() {
-            db.collection('escudos').onSnapshot(snapshot => {
-                escudosEquipos = {};
-                snapshot.forEach(doc => {
-                    escudosEquipos[doc.id] = doc.data().imagen;
-                });
-                cargarPartidos();
-                if (vistaActual === 'tabla') calcularTabla();
-            });
-        }
-
-        function inicializarSelectorFechas() {
-            const select = document.getElementById('select-numero-fecha');
-            select.innerHTML = '';
-            for (let i = 1; i <= 30; i++) {
-                const opt = document.createElement('option');
-                opt.value = i;
-                opt.innerText = `Fecha ${i}`;
-                if (i === fechaSeleccionada) opt.selected = true;
-                select.appendChild(opt);
-            }
-        }
-
-        function cambiarFechaVisualizada(numFecha) {
-            fechaSeleccionada = parseInt(numFecha);
-            cargarPartidos();
-        }
-
-        auth.onAuthStateChanged(user => {
-            esAdmin = !!user;
-            if (user) {
-                document.getElementById('login-container').classList.add('hidden');
-                document.getElementById('admin-panel').classList.remove('hidden');
-            } else {
-                document.getElementById('login-container').classList.remove('hidden');
-                document.getElementById('admin-panel').classList.add('hidden');
-            }
-            cargarPartidos();
-        });
-
-        function loginAdmin(e) {
-            e.preventDefault();
-            const email = document.getElementById('admin-email').value;
-            const pass = document.getElementById('admin-pass').value;
-            auth.signInWithEmailAndPassword(email, pass).catch(err => alert("Error: " + err.message));
-        }
-
-        function logoutAdmin() {
-            auth.signOut();
-        }
-
-        function cambiarTorneo(key) {
-            torneoActual = key;
-            document.getElementById('torneo-titulo').innerText = nombresTorneos[key];
-            
-            document.querySelectorAll('.tab-btn').forEach(btn => {
-                btn.classList.remove('border-blue-900', 'text-blue-900', 'bg-white');
-                btn.classList.add('border-transparent', 'text-gray-600', 'bg-gray-50');
-            });
-
-            const tabActivo = document.getElementById(`tab-${key}`);
-            tabActivo.classList.add('border-blue-900', 'text-blue-900', 'bg-white');
-            tabActivo.classList.remove('border-transparent', 'text-gray-600', 'bg-gray-50');
-
-            cancelarEdicion();
-            cargarPartidos();
-            if (vistaActual === 'tabla') calcularTabla();
-        }
-
-        function toggleVista() {
-            const seccionFechas = document.getElementById('seccion-fechas');
-            const seccionTabla = document.getElementById('seccion-tabla');
-            const btn = document.getElementById('btn-toggle-vista');
-            const selectorFecha = document.getElementById('contenedor-selector-fecha');
-
-            if (vistaActual === 'fechas') {
-                seccionFechas.classList.add('hidden');
-                seccionTabla.classList.remove('hidden');
-                selectorFecha.classList.add('hidden');
-                btn.innerText = 'Ver Fechas del Torneo';
-                vistaActual = 'tabla';
-                calcularTabla();
-            } else {
-                seccionTabla.classList.add('hidden');
-                seccionFechas.classList.remove('hidden');
-                selectorFecha.classList.remove('hidden');
-                btn.innerText = 'Ver Tabla de Posiciones';
-                vistaActual = 'fechas';
-            }
-        }
-
-        function toggleFormularioLibre() {
-            const esLibre = document.getElementById('es-libre').checked;
-            const camposPartido = document.querySelectorAll('.campo-partido');
-            const inputsEquipo2 = document.querySelectorAll('.input-equipo2');
-            const inputEquipo1 = document.getElementById('equipo1');
-
-            if (esLibre) {
-                camposPartido.forEach(el => el.classList.add('hidden'));
-                inputsEquipo2.forEach(el => el.removeAttribute('required'));
-                document.getElementById('goles1').removeAttribute('required');
-                inputEquipo1.placeholder = "Nombre del equipo libre";
-            } else {
-                camposPartido.forEach(el => el.classList.remove('hidden'));
-                inputsEquipo2.forEach(el => el.setAttribute('required', 'true'));
-                document.getElementById('goles1').setAttribute('required', 'true');
-                inputEquipo1.placeholder = "Equipo Local";
-            }
-        }
-
-        function obtenerHtmlEscudo(nombreEquipo) {
-            const src = escudosEquipos[nombreEquipo.trim().toLowerCase()];
-            if (src) {
-                return `<img src="${src}" class="w-6 h-6 object-contain inline-block shrink-0 rounded-full bg-white border" alt="Escudo">`;
-            }
-            return `<span class="w-6 h-6 rounded-full bg-gray-200 border flex items-center justify-center text-[10px] text-gray-500 font-bold shrink-0">⚽</span>`;
-        }
-
-        // Redimensionar imagen para optimizar almacenamiento en Firebase
-        function optimizarImagenBase64(file, maxWidth, callback) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const img = new Image();
-                img.onload = function() {
-                    const canvas = document.createElement('canvas');
-                    let width = img.width;
-                    let height = img.height;
-
-                    if (width > maxWidth) {
-                        height = Math.round((height * maxWidth) / width);
-                        width = maxWidth;
-                    }
-
-                    canvas.width = width;
-                    canvas.height = height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, width, height);
-                    callback(canvas.toDataURL('image/png', 0.8));
-                };
-                img.src = e.target.result;
-            };
-            reader.readAsDataURL(file);
-        }
-
-        // Subir Escudo a Firebase
-        function guardarEscudoEquipo(e) {
-            e.preventDefault();
-            const nombreOriginal = document.getElementById('escudo-nombre-equipo').value.trim();
-            const idDoc = nombreOriginal.toLowerCase();
-            const file = document.getElementById('escudo-input-file').files[0];
-            const btn = document.getElementById('btn-guardar-escudo');
-
-            if (!idDoc || !file) return;
-
-            btn.disabled = true;
-            btn.innerText = "Guardando en Firebase...";
-
-            optimizarImagenBase64(file, 120, function(imagenBase64) {
-                db.collection('escudos').doc(idDoc).set({
-                    nombreOriginal: nombreOriginal,
-                    imagen: imagenBase64
-                }).then(() => {
-                    alert(`Escudo de "${nombreOriginal}" guardado con éxito. Ahora visible en todos los dispositivos.`);
-                    e.target.reset();
-                }).catch(err => {
-                    alert("Error al guardar escudo: " + err.message);
-                }).finally(() => {
-                    btn.disabled = false;
-                    btn.innerText = "Guardar Escudo en Firebase";
-                });
-            });
-        }
-
-        // Subir Logo de Agua a Firebase
-        function subirLogoFirebase(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            optimizarImagenBase64(file, 400, function(imagenBase64) {
-                db.collection('configuracion').doc('general').set({
-                    logoTorneo: imagenBase64
-                }).then(() => {
-                    alert("Logo del torneo cargado y sincronizado para todos los dispositivos.");
-                }).catch(err => alert("Error al subir el logo: " + err.message));
-            });
-        }
-
-        function guardarPartido(e) {
-            e.preventDefault();
-            const idEditando = document.getElementById('partido-id-editando').value;
-            const numFecha = parseInt(document.getElementById('numero-fecha').value) || 1;
-            const esLibre = document.getElementById('es-libre').checked;
-            const eq1 = document.getElementById('equipo1').value.trim();
-
-            let datosGuardar = {
-                torneo: torneoActual,
-                numeroFecha: numFecha,
-                equipo1: eq1,
-                esLibre: esLibre
-            };
-
-            if (esLibre) {
-                datosGuardar.goles1 = 0;
-                datosGuardar.goles2 = 0;
-                datosGuardar.equipo2 = '';
-            } else {
-                datosGuardar.goles1 = parseInt(document.getElementById('goles1').value);
-                datosGuardar.goles2 = parseInt(document.getElementById('goles2').value);
-                datosGuardar.equipo2 = document.getElementById('equipo2').value.trim();
-            }
-
-            if (idEditando) {
-                db.collection('partidos').doc(idEditando).update(datosGuardar).then(() => {
-                    alert("Resultado actualizado correctamente");
-                    cancelarEdicion();
-                    cargarPartidos();
-                    if (vistaActual === 'tabla') calcularTabla();
-                }).catch(err => alert("Error al actualizar: " + err.message));
-            } else {
-                datosGuardar.fecha = firebase.firestore.FieldValue.serverTimestamp();
-                db.collection('partidos').add(datosGuardar).then(() => {
-                    alert(esLibre ? "Fecha libre guardada con éxito" : "Partido guardado con éxito");
-                    cancelarEdicion();
-                    cargarPartidos();
-                    if (vistaActual === 'tabla') calcularTabla();
-                }).catch(err => alert("Error al guardar: " + err.message));
-            }
-        }
-
-        function cargarPartidos() {
-            const contenedor = document.getElementById('seccion-fechas');
-            contenedor.innerHTML = '<p class="text-gray-500 text-center py-4">Cargando partidos...</p>';
-
-            db.collection('partidos')
-              .where('torneo', '==', torneoActual)
-              .where('numeroFecha', '==', fechaSeleccionada)
-              .get().then(snapshot => {
-                if(snapshot.empty) {
-                    contenedor.innerHTML = `<p class="text-gray-500 text-center py-4">No hay partidos registrados para la <b>Fecha ${fechaSeleccionada}</b>.</p>`;
-                    partidosCargados = [];
-                    return;
-                }
-                
-                partidosCargados = [];
-                let html = '';
-
-                snapshot.forEach(doc => {
-                    const p = doc.data();
-                    p.id = doc.id;
-                    partidosCargados.push(p);
-
-                    const accionesAdmin = esAdmin ? `
-                        <div class="flex gap-1 ml-2 shrink-0">
-                            <button onclick="prepararEdicion('${p.id}')" title="Editar" class="bg-amber-500 hover:bg-amber-600 text-white text-xs px-2 py-1 rounded font-semibold transition">
-                                ✏️
-                            </button>
-                            <button onclick="eliminarPartido('${p.id}')" title="Eliminar" class="bg-red-600 hover:bg-red-700 text-white text-xs px-2 py-1 rounded font-semibold transition">
-                                🗑️
-                            </button>
-                        </div>
-                    ` : '';
-
-                    const escudo1 = obtenerHtmlEscudo(p.equipo1);
-                    const escudo2 = p.equipo2 ? obtenerHtmlEscudo(p.equipo2) : '';
-
-                    if (p.esLibre) {
-                        html += `
-                            <div class="bg-amber-50/90 backdrop-blur-sm border-l-4 border-amber-500 p-3 rounded-r-lg border flex justify-between items-center text-sm md:text-base shadow-sm">
-                                <div class="flex items-center gap-2">
-                                    ${escudo1}
-                                    <span class="font-semibold text-amber-900">${p.equipo1}</span>
-                                </div>
-                                <div class="flex items-center gap-2">
-                                    <span class="bg-amber-200 text-amber-900 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">LIBRE</span>
-                                    ${accionesAdmin}
-                                </div>
-                            </div>
-                        `;
-                    } else {
-                        html += `
-                            <div class="bg-gray-50/90 backdrop-blur-sm p-3 rounded-lg border flex justify-between items-center text-sm md:text-base shadow-sm gap-2">
-                                <div class="flex-1 flex items-center justify-end gap-2 truncate">
-                                    <span class="font-medium text-gray-800 truncate">${p.equipo1}</span>
-                                    ${escudo1}
-                                </div>
-                                <span class="min-w-[3.5rem] text-center bg-blue-900 text-white px-2.5 py-1 rounded font-bold text-sm md:text-base shrink-0 shadow-sm">${p.goles1} - ${p.goles2}</span>
-                                <div class="flex-1 flex items-center justify-start gap-2 truncate">
-                                    ${escudo2}
-                                    <span class="font-medium text-gray-800 truncate">${p.equipo2}</span>
-                                </div>
-                                ${accionesAdmin}
-                            </div>
-                        `;
-                    }
-                });
-                contenedor.innerHTML = html;
-            });
-        }
-
-        function prepararEdicion(id) {
-            const partido = partidosCargados.find(p => p.id === id);
-            if (!partido) return;
-
-            document.getElementById('partido-id-editando').value = partido.id;
-            document.getElementById('numero-fecha').value = partido.numeroFecha || fechaSeleccionada;
-            document.getElementById('es-libre').checked = !!partido.esLibre;
-            toggleFormularioLibre();
-
-            document.getElementById('equipo1').value = partido.equipo1 || '';
-            if (!partido.esLibre) {
-                document.getElementById('goles1').value = partido.goles1 ?? '';
-                document.getElementById('equipo2').value = partido.equipo2 || '';
-                document.getElementById('goles2').value = partido.goles2 ?? '';
-            }
-
-            document.getElementById('form-titulo').innerText = "Editar Resultado Existente";
-            document.getElementById('indicador-edicion').classList.remove('hidden');
-            document.getElementById('btn-submit-form').innerText = "Guardar Cambios";
-            document.getElementById('btn-cancelar-edicion').classList.remove('hidden');
-
-            document.getElementById('admin-panel').scrollIntoView({ behavior: 'smooth' });
-        }
-
-        function cancelarEdicion() {
-            document.getElementById('partido-id-editando').value = '';
-            const form = document.querySelector('#admin-panel form');
-            if (form) form.reset();
-            
-            document.getElementById('numero-fecha').value = fechaSeleccionada;
-            document.getElementById('es-libre').checked = false;
-            toggleFormularioLibre();
-
-            document.getElementById('form-titulo').innerText = "Cargar Resultado o Fecha Libre";
-            document.getElementById('indicador-edicion').classList.add('hidden');
-            document.getElementById('btn-submit-form').innerText = "Guardar Registro";
-            document.getElementById('btn-cancelar-edicion').classList.add('hidden');
-        }
-
-        function eliminarPartido(id) {
-            if (confirm("¿Estás seguro de que deseas eliminar este partido?")) {
-                db.collection('partidos').doc(id).delete().then(() => {
-                    alert("Partido eliminado correctamente.");
-                    cargarPartidos();
-                    if (vistaActual === 'tabla') calcularTabla();
-                }).catch(err => alert("Error al eliminar: " + err.message));
-            }
-        }
-
-        function calcularTabla() {
-            db.collection('partidos').where('torneo', '==', torneoActual).get().then(snapshot => {
-                const equipos = {};
-
-                snapshot.forEach(doc => {
-                    const p = doc.data();
-
-                    if (p.esLibre) {
-                        if (!equipos[p.equipo1]) equipos[p.equipo1] = { pj:0, pg:0, pe:0, pp:0, gf:0, gc:0, pts:0 };
-                        equipos[p.equipo1].pj++;
-                        return;
-                    }
-
-                    [p.equipo1, p.equipo2].forEach(eq => {
-                        if (!equipos[eq]) equipos[eq] = { pj:0, pg:0, pe:0, pp:0, gf:0, gc:0, pts:0 };
-                    });
-
-                    equipos[p.equipo1].pj++;
-                    equipos[p.equipo2].pj++;
-                    equipos[p.equipo1].gf += p.goles1;
-                    equipos[p.equipo1].gc += p.goles2;
-                    equipos[p.equipo2].gf += p.goles2;
-                    equipos[p.equipo2].gc += p.goles1;
-
-                    if (p.goles1 > p.goles2) {
-                        equipos[p.equipo1].pg++;
-                        equipos[p.equipo1].pts += 3;
-                        equipos[p.equipo2].pp++;
-                    } else if (p.goles2 > p.goles1) {
-                        equipos[p.equipo2].pg++;
-                        equipos[p.equipo2].pts += 3;
-                        equipos[p.equipo1].pp++;
-                    } else {
-                        equipos[p.equipo1].pe++;
-                        equipos[p.equipo1].pts += 1;
-                        equipos[p.equipo2].pe++;
-                        equipos[p.equipo2].pts += 1;
-                    }
-                });
-
-                const listaOrdenada = Object.keys(equipos).map(nombre => ({
-                    nombre, ...equipos[nombre], dif: equipos[nombre].gf - equipos[nombre].gc
-                })).sort((a,b) => b.pts - a.pts || b.dif - a.dif);
-
-                const tbody = document.getElementById('tabla-body');
-                tbody.innerHTML = listaOrdenada.map(e => `
-                    <tr class="hover:bg-gray-50/80">
-                        <td class="p-2.5 font-semibold text-gray-800 flex items-center gap-2">
-                            ${obtenerHtmlEscudo(e.nombre)}
-                            <span>${e.nombre}</span>
-                        </td>
-                        <td class="p-2.5 text-center font-bold text-blue-900 bg-blue-50/80">${e.pts}</td>
-                        <td class="p-2.5 text-center">${e.pj}</td>
-                        <td class="p-2.5 text-center">${e.pg}</td>
-                        <td class="p-2.5 text-center">${e.pe}</td>
-                        <td class="p-2.5 text-center">${e.pp}</td>
-                        <td class="p-2.5 text-center">${e.gf}</td>
-                        <td class="p-2.5 text-center">${e.gc}</td>
-                        <td class="p-2.5 text-center font-medium">${e.dif > 0 ? '+'+e.dif : e.dif}</td>
-                    </tr>
-                `).join('');
-            });
-        }
-
-        function mostrarLogoMarcaAgua(src) {
-            const img = document.getElementById('marca-agua-img');
-            img.src = src;
-            img.classList.remove('hidden');
-        }
-
-        function descargarPDF() {
-            const elemento = document.getElementById('contenido-exportable');
-            const tituloTorneo = nombresTorneos[torneoActual];
-
-            const opciones = {
-                margin:       10,
-                filename:     `${tituloTorneo}_Fecha${fechaSeleccionada}_${vistaActual}.pdf`,
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, background: '#ffffff' },
-                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            };
-
-            html2pdf().set(opciones).from(elemento).save();
-        }
-
-        cargarPartidos();
-    </script>
+        <label class="jugado-check"><input type="checkbox" id="jg-${p.id}" ${p.jugado?'checked':''}> Ya se jugó</label>
+      </div>
+      <div class="btn-row" style="margin-top:12px;">
+        <button class="btn btn-gold" onclick="guardarResultado('${p.id}')">Guardar</button>
+        <button class="btn btn-danger" onclick="eliminarPartido('${p.id}')">Eliminar</button>
+      </div>`;
+  }
+  return `
+    <div class="match-card">
+      <div class="match-teams">
+        <div class="match-team">${crest(local)}<div class="match-team-name">${escapeHtml(local.nombre)}</div></div>
+        <div>${marcador}</div>
+        <div class="match-team">${crest(visit)}<div class="match-team-name">${escapeHtml(visit.nombre)}</div></div>
+      </div>
+      ${adminBlock}
+    </div>`;
+}
+
+function renderEquiposHTML(){
+  const c = getCache();
+  const torneo = TORNEOS[state.torneoId];
+  const logo = state.logos[torneo.id];
+  const filas = c.equipos.map(e=>`
+    <div class="equipo-row">
+      ${e.escudo ? `<img class="crest-md-sm" src="${e.escudo}" alt="">` : `<div class="crest-sm-ph" style="width:40px;height:40px;">🛡️</div>`}
+      <div class="nombre">${escapeHtml(e.nombre)}</div>
+      <button class="btn btn-outline" style="padding:8px 12px;min-height:40px;" onclick="renombrarEquipo('${e.id}')">✏️ Nombre</button>
+      <label class="file-btn" style="width:auto;padding:8px 12px;">📷 Escudo
+        <input type="file" accept="image/*" onchange="onEscudoEquipoChange('${e.id}', this)">
+      </label>
+      <button class="btn btn-danger" style="padding:8px 12px;min-height:40px;" onclick="eliminarEquipo('${e.id}')">🗑️ Borrar</button>
+    </div>`).join('');
+
+  return `
+    <div class="card card-admin">
+      <div class="card-title">➕ Agregar equipo nuevo</div>
+      <div class="field">
+        <label for="nuevoEquipoNombre">Nombre del equipo</label>
+        <input type="text" id="nuevoEquipoNombre" placeholder="Ej: Los Amigos FC">
+      </div>
+      <button class="btn btn-primary btn-block" onclick="addEquipo()">Agregar equipo</button>
+    </div>
+    <div class="card">
+      <div class="card-title">🛡️ Equipos de esta zona (${c.equipos.length})</div>
+      ${filas || '<p class="empty-note">Todavía no hay equipos.</p>'}
+    </div>
+    <div class="card card-admin">
+      <div class="card-title">🏆 Logo del torneo</div>
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px;">
+        <div class="crest-slot" style="width:56px;height:56px;">${logo?`<img src="${logo}" alt="">`:'🏆'}</div>
+        <span style="color:#6b6659;font-size:.9rem;">Se muestra en la portada y en la tabla descargable.</span>
+      </div>
+      <label class="file-btn">📷 Cambiar logo del torneo
+        <input type="file" accept="image/*" onchange="onLogoTorneoChange(this)">
+      </label>
+    </div>`;
+}
+
+/* =======================================================================
+   DISPATCHER
+   ======================================================================= */
+function render(){
+  const app = document.getElementById('app');
+  if(state.errorCarga){
+    app.innerHTML = `${renderTopbar('Torneos Adila', false)}<div class="wrap"><p class="loader-note">No se pudo conectar con los datos.<br>Revisá tu conexión a internet.</p><button class="btn btn-primary btn-block" onclick="location.reload()">Reintentar</button></div>`;
+    return;
+  }
+  if(state.cargando){
+    app.innerHTML = `${renderTopbar('Torneos Adila', false)}<div class="wrap"><p class="loader-note">Cargando…</p></div>`;
+    return;
+  }
+  if(state.view==='home') renderHome();
+  else if(state.view==='zonaSelect') renderZonaSelect();
+  else if(state.view==='torneo') renderTorneoView();
+  else if(state.view==='historial') renderHistorial();
+  else if(state.view==='adminTorneo') renderAdminTorneo();
+  renderToast();
+}
+
+/* =======================================================================
+   INICIO
+   ======================================================================= */
+(async function init(){
+  render();
+  try{
+    await loadEdiciones();
+  }catch(e){
+    console.error(e);
+    state.errorCarga = true; state.cargando = false; render(); return;
+  }
+  state.edicionId = ultimaEdicion().id;
+  state.cargando = false;
+  render();
+  try{
+    const [lv, lm] = await Promise.all([getLogo('veteranos50'), getLogo('masCuarenta')]);
+    state.logos.veteranos50 = lv; state.logos.masCuarenta = lm;
+  }catch(e){}
+  await loadCampeones();
+  render();
+})();
+</script>
 </body>
 </html>
